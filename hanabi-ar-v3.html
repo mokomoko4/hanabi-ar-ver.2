@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>はなびARあそび</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:#06001a;color:#fff;height:100dvh;overflow:hidden;}
+
+/* ── 画面管理 ── */
+.screen{display:none;flex-direction:column;height:100dvh;align-items:center;justify-content:center;padding:24px;}
+.screen.active{display:flex;}
+
+/* ── トップ画面 ── */
+#screen-top{background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);}
+.top-emoji{font-size:64px;animation:float 3s ease-in-out infinite;margin-bottom:16px;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.top-title{font-size:28px;font-weight:900;text-align:center;line-height:1.3;margin-bottom:12px;background:linear-gradient(135deg,#ffcc44,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.top-desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:32px;}
+
+.upload-box{
+  width:100%;max-width:320px;
+  border:2px dashed rgba(100,180,255,0.5);
+  border-radius:20px;padding:32px 24px;
+  text-align:center;cursor:pointer;
+  background:rgba(100,180,255,0.06);
+  transition:all 0.2s;
+  margin-bottom:16px;
+}
+.upload-box:active{background:rgba(100,180,255,0.12);}
+.upload-box .icon{font-size:48px;margin-bottom:12px;}
+.upload-box .label{font-size:15px;color:rgba(255,255,255,0.8);margin-bottom:6px;}
+.upload-box .sub{font-size:11px;color:rgba(255,255,255,0.35);}
+
+.upload-box.selected{
+  border-color:rgba(100,255,150,0.6);
+  background:rgba(100,255,150,0.08);
+}
+.upload-box.selected .label{color:#88ffaa;}
+
+.start-btn{
+  width:100%;max-width:320px;
+  padding:16px;border:none;border-radius:16px;
+  background:linear-gradient(135deg,#ff6b00,#ffcc00);
+  color:#000;font-size:16px;font-weight:900;
+  cursor:pointer;letter-spacing:0.06em;
+  display:none;
+}
+.start-btn.show{display:block;}
+.start-btn:active{transform:scale(0.97);}
+
+/* ── AR画面 ── */
+#screen-ar{display:none;position:fixed;inset:0;background:#000;}
+#screen-ar.active{display:block;}
+#screen-ar a-scene{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;z-index:1;}
+
+.ar-ui{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;pointer-events:none;}
+.ar-header{
+  padding:14px 16px 10px;
+  background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);
+  display:flex;align-items:center;gap:10px;pointer-events:all;
+}
+.ar-back{
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;
+}
+.ar-title{font-size:14px;font-weight:700;color:#ffcc44;}
+.ar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
+.ar-status{
+  margin:auto auto 0;
+  padding:8px 20px;
+  background:rgba(0,0,0,0.6);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:20px;font-size:12px;
+  color:rgba(255,255,255,0.8);
+  text-align:center;transition:all 0.4s;
+}
+.ar-status.found{border-color:rgba(100,255,150,0.5);color:#88ffaa;background:rgba(0,40,20,0.7);}
+.ar-bottom{
+  padding:12px 16px 28px;
+  background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);
+  display:flex;gap:8px;pointer-events:all;
+}
+.ar-btn{
+  flex:1;padding:11px 8px;border-radius:14px;
+  border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);
+  color:#fff;font-size:11px;text-align:center;cursor:pointer;
+}
+.ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+</style>
+</head>
+<body>
+
+<!-- トップ画面 -->
+<div class="screen active" id="screen-top">
+  <div class="top-emoji">🎆</div>
+  <div class="top-title">はなびAR<br>あそび</div>
+  <div class="top-desc">GLBファイルを選んで<br>マーカーの上に3Dモデルを出そう！</div>
+
+  <div class="upload-box" id="uploadBox" onclick="document.getElementById('glbInput').click()">
+    <div class="icon">🧊</div>
+    <div class="label">GLBファイルを選ぶ</div>
+    <div class="sub">タップしてファイルを選択</div>
+  </div>
+  <input type="file" id="glbInput" accept=".glb,.gltf" style="display:none;" onchange="handleGLB(this)">
+
+  <button class="start-btn" id="startBtn" onclick="startAR()">ARをはじめる ▶</button>
+</div>
+
+<!-- AR画面 -->
+<div id="screen-ar">
+  <a-scene
+    arjs="sourceType:webcam; debugUIEnabled:false;"
+    renderer="antialias:true;"
+    vr-mode-ui="enabled:false"
+    loading-screen="enabled:false"
+  >
+    <a-assets timeout="10000">
+      <a-asset-item id="glbAsset" src=""></a-asset-item>
+    </a-assets>
+    <a-marker preset="hiro" id="hiroMarker">
+      <a-gltf-model id="glbModel" src="#glbAsset" position="0 0.5 0" rotation="0 0 0" scale="1 1 1"></a-gltf-model>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <div class="ar-ui">
+    <div class="ar-header">
+      <div class="ar-back" onclick="stopAR()">←</div>
+      <div>
+        <div class="ar-title">マーカーを探してね</div>
+        <div class="ar-sub" id="arSub">黒と白の四角いマークに向けよう</div>
+      </div>
+    </div>
+    <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
+    <div class="ar-bottom">
+      <div class="ar-btn" onclick="stopAR()"><span class="bi">←</span>もどる</div>
+      <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let glbURL = null;
+let markerReady = false;
+
+function handleGLB(input) {
+  const file = input.files[0];
+  if(!file) return;
+  if(glbURL) URL.revokeObjectURL(glbURL);
+  glbURL = URL.createObjectURL(file);
+
+  const box = document.getElementById('uploadBox');
+  box.classList.add('selected');
+  box.innerHTML = '<div class="icon">✅</div><div class="label">'+file.name+'</div><div class="sub">'+(file.size/1024).toFixed(1)+'KB　タップで変更</div>';
+
+  document.getElementById('startBtn').classList.add('show');
+}
+
+function startAR() {
+  if(!glbURL) return;
+
+  // GLBをセット
+  document.getElementById('glbAsset').setAttribute('src', glbURL);
+  document.getElementById('glbModel').setAttribute('src', '#glbAsset');
+
+  // 画面切り替え
+  document.getElementById('screen-top').classList.remove('active');
+  document.getElementById('screen-ar').classList.add('active');
+
+  // マーカーイベント（1回だけ登録）
+  if(!markerReady) {
+    markerReady = true;
+    const marker = document.getElementById('hiroMarker');
+    marker.addEventListener('markerFound', () => {
+      const st = document.getElementById('arStatus');
+      st.textContent = '✨ モデルが出た！';
+      st.classList.add('found');
+      document.getElementById('arSub').textContent = 'スマホのスクショで写真を撮ってね📸';
+    });
+    marker.addEventListener('markerLost', () => {
+      const st = document.getElementById('arStatus');
+      st.textContent = '📷 マーカーを探しています…';
+      st.classList.remove('found');
+      document.getElementById('arSub').textContent = '黒と白の四角いマークに向けよう';
+    });
+  }
+}
+
+function stopAR() {
+  document.getElementById('screen-ar').classList.remove('active');
+  document.getElementById('screen-top').classList.add('active');
+  document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
+  document.getElementById('arStatus').classList.remove('found');
+}
+</script>
+</body>
+</html>
