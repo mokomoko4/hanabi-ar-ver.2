@@ -55,7 +55,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 /* ── AR画面 ── */
 #screen-ar{display:none;position:fixed;inset:0;background:#000;}
 #screen-ar.active{display:block;}
-#screen-ar a-scene{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;z-index:1;}
+#screen-ar a-scene{position:absolute!important;top:0!important;left:0!important;width:100%!important;height:100%!important;z-index:1;}
 
 .ar-ui{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;pointer-events:none;}
 .ar-header{
@@ -115,8 +115,9 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 <!-- AR画面 -->
 <div id="screen-ar">
   <a-scene
-    arjs="sourceType:webcam; debugUIEnabled:false;"
-    renderer="antialias:true;"
+    embedded
+    arjs="sourceType:webcam; debugUIEnabled:false; trackingMethod:best;"
+    renderer="antialias:true; logarithmicDepthBuffer:true;"
     vr-mode-ui="enabled:false"
     loading-screen="enabled:false"
   >
