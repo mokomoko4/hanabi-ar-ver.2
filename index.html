@@ -9,24 +9,53 @@
 body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:#06001a;color:#fff;height:100dvh;overflow:hidden;}
 .screen{display:none;flex-direction:column;height:100dvh;align-items:center;justify-content:center;padding:24px;}
 .screen.active{display:flex;}
+
+/* トップ */
 #screen-top{background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);}
 .top-emoji{font-size:64px;animation:float 3s ease-in-out infinite;margin-bottom:16px;}
 @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 .top-title{font-size:28px;font-weight:900;text-align:center;line-height:1.3;margin-bottom:12px;background:linear-gradient(135deg,#ffcc44,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.top-desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:32px;}
-.upload-box{width:100%;max-width:320px;border:2px dashed rgba(100,180,255,0.5);border-radius:20px;padding:32px 24px;text-align:center;cursor:pointer;background:rgba(100,180,255,0.06);transition:all 0.2s;margin-bottom:16px;}
-.upload-box .icon{font-size:48px;margin-bottom:12px;}
-.upload-box .label{font-size:15px;color:rgba(255,255,255,0.8);margin-bottom:6px;}
+.top-desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:24px;}
+.upload-box{width:100%;max-width:320px;border:2px dashed rgba(100,180,255,0.5);border-radius:20px;padding:24px;text-align:center;cursor:pointer;background:rgba(100,180,255,0.06);transition:all 0.2s;margin-bottom:12px;}
+.upload-box .icon{font-size:40px;margin-bottom:8px;}
+.upload-box .label{font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:4px;}
 .upload-box .sub{font-size:11px;color:rgba(255,255,255,0.35);}
 .upload-box.selected{border-color:rgba(100,255,150,0.6);background:rgba(100,255,150,0.08);}
 .upload-box.selected .label{color:#88ffaa;}
 .start-btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff6b00,#ffcc00);color:#000;font-size:16px;font-weight:900;cursor:pointer;display:none;margin-bottom:12px;}
 .start-btn.show{display:block;}
+
+/* QRスキャン画面 */
+#screen-qr{display:none;position:fixed;inset:0;background:#000;}
+#screen-qr.active{display:block;}
+#qrVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+.qr-ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;pointer-events:none;}
+.qr-header{width:100%;padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
+.qr-back{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
+.qr-title{font-size:14px;font-weight:700;color:#ffcc44;}
+.qr-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
+.qr-frame{
+  margin:auto;
+  width:220px;height:220px;
+  border:3px solid rgba(255,200,60,0.8);
+  border-radius:20px;
+  position:relative;
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.45);
+}
+.qr-corner{position:absolute;width:28px;height:28px;border-color:#ffcc44;border-style:solid;}
+.qr-corner.tl{top:-3px;left:-3px;border-width:4px 0 0 4px;border-radius:8px 0 0 0;}
+.qr-corner.tr{top:-3px;right:-3px;border-width:4px 4px 0 0;border-radius:0 8px 0 0;}
+.qr-corner.bl{bottom:-3px;left:-3px;border-width:0 0 4px 4px;border-radius:0 0 0 8px;}
+.qr-corner.br{bottom:-3px;right:-3px;border-width:0 4px 4px 0;border-radius:0 0 8px 0;}
+.qr-scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ffcc44,transparent);animation:scan 2s linear infinite;}
+@keyframes scan{0%{top:0;}100%{top:100%;}}
+.qr-hint{margin-top:24px;padding:8px 20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:12px;color:rgba(255,255,255,0.8);pointer-events:all;}
+
+/* AR画面 */
 #screen-ar{display:none;position:fixed;inset:0;background:#000;}
 #screen-ar.active{display:block;}
 #arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
 #arCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;}
-#detectCanvas{display:none;}
 .ar-ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;pointer-events:none;}
 .ar-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
 .ar-back{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
@@ -37,36 +66,61 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .ar-bottom{padding:12px 16px 28px;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;gap:8px;pointer-events:all;}
 .ar-btn{flex:1;padding:11px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);color:#fff;font-size:11px;text-align:center;cursor:pointer;}
 .ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+.ar-tap-hint{position:absolute;bottom:120px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.5);z-index:10;pointer-events:none;}
 </style>
 </head>
 <body>
 
+<!-- トップ -->
 <div class="screen active" id="screen-top">
   <div class="top-emoji">🎆</div>
   <div class="top-title">はなびAR<br>あそび</div>
-  <div class="top-desc">GLBファイルを選んで<br>マーカーの上に3Dモデルを出そう！</div>
+  <div class="top-desc">GLBを選んでQRコードを読み取ると<br>3Dモデルが現れるよ！</div>
   <div class="upload-box" id="uploadBox" onclick="document.getElementById('glbInput').click()">
     <div class="icon">🧊</div>
     <div class="label">GLBファイルを選ぶ</div>
     <div class="sub">タップしてファイルを選択</div>
   </div>
   <input type="file" id="glbInput" accept=".glb,.gltf" style="display:none;" onchange="handleGLB(this)">
-  <button class="start-btn" id="startBtn" onclick="startAR()">ARをはじめる ▶</button>
+  <button class="start-btn" id="startBtn" onclick="goQR()">QRコードを読む 📷</button>
 </div>
 
+<!-- QRスキャン -->
+<div id="screen-qr">
+  <video id="qrVideo" autoplay playsinline muted></video>
+  <div class="qr-ui">
+    <div class="qr-header">
+      <div class="qr-back" onclick="stopQR()">←</div>
+      <div>
+        <div class="qr-title">QRコードを読み取って</div>
+        <div class="qr-sub">枠の中にQRコードを入れてね</div>
+      </div>
+    </div>
+    <div class="qr-frame">
+      <div class="qr-corner tl"></div>
+      <div class="qr-corner tr"></div>
+      <div class="qr-corner bl"></div>
+      <div class="qr-corner br"></div>
+      <div class="qr-scan-line"></div>
+    </div>
+    <div class="qr-hint" id="qrHint">📷 QRコードを探しています…</div>
+  </div>
+</div>
+
+<!-- AR -->
 <div id="screen-ar">
   <video id="arVideo" autoplay playsinline muted></video>
   <canvas id="arCanvas"></canvas>
-  <canvas id="detectCanvas"></canvas>
+  <div class="ar-tap-hint">画面をタップするとモデルが出るよ！</div>
   <div class="ar-ui">
     <div class="ar-header">
       <div class="ar-back" onclick="stopAR()">←</div>
       <div>
-        <div class="ar-title">マーカーを探してね</div>
-        <div class="ar-sub" id="arSub">Hiroマーカーに向けよう</div>
+        <div class="ar-title">AR体験中！</div>
+        <div class="ar-sub" id="arSub">画面をタップしてみてね</div>
       </div>
     </div>
-    <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
+    <div class="ar-status" id="arStatus">📷 タップでモデルを出してみよう</div>
     <div class="ar-bottom">
       <div class="ar-btn" onclick="stopAR()"><span class="bi">←</span>もどる</div>
       <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
@@ -76,20 +130,18 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-aruco@0.1.3/src/aruco.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-aruco@0.1.3/src/svd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-aruco@0.1.3/src/posit1.js"></script>
 
 <script>
 let glbURL = null;
+let qrStream = null;
 let arStream = null;
 let renderer, scene, threeCamera, model;
 let animId = null;
-let detectId = null;
-let detector = null;
-let posit = null;
-const MODEL_SIZE = 35; // マーカーの実サイズ(mm)
+let modelVisible = false;
+let qrScanId = null;
+let barcodeDetector = null;
 
+// ── GLB選択 ──
 function handleGLB(input) {
   const file = input.files[0];
   if(!file) return;
@@ -101,15 +153,71 @@ function handleGLB(input) {
   document.getElementById('startBtn').classList.add('show');
 }
 
-async function startAR() {
+// ── QRスキャン画面へ ──
+async function goQR() {
   if(!glbURL) return;
   document.getElementById('screen-top').classList.remove('active');
+  document.getElementById('screen-qr').classList.add('active');
+
+  try {
+    qrStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}}
+    });
+    document.getElementById('qrVideo').srcObject = qrStream;
+    await document.getElementById('qrVideo').play();
+  } catch(e) {
+    document.getElementById('qrHint').textContent = 'カメラの許可が必要です';
+    return;
+  }
+
+  // BarcodeDetector API（Chrome/Safari対応）
+  if('BarcodeDetector' in window) {
+    barcodeDetector = new BarcodeDetector({formats:['qr_code']});
+    scanQR();
+  } else {
+    // 非対応の場合はタップでAR起動
+    document.getElementById('qrHint').textContent = 'このブラウザはQR認識非対応です。タップしてARを起動！';
+    document.getElementById('qrHint').style.cursor = 'pointer';
+    document.getElementById('qrHint').style.pointerEvents = 'all';
+    document.getElementById('qrHint').onclick = () => {
+      stopQR();
+      startAR('QRスキャン成功！');
+    };
+  }
+}
+
+async function scanQR() {
+  const video = document.getElementById('qrVideo');
+  if(video.readyState === video.HAVE_ENOUGH_DATA) {
+    try {
+      const barcodes = await barcodeDetector.detect(video);
+      if(barcodes.length > 0) {
+        const qrValue = barcodes[0].rawValue;
+        document.getElementById('qrHint').textContent = '✅ QR読み取り成功！';
+        stopQR();
+        startAR(qrValue);
+        return;
+      }
+    } catch(e) {}
+  }
+  qrScanId = setTimeout(scanQR, 300);
+}
+
+function stopQR() {
+  if(qrScanId){ clearTimeout(qrScanId); qrScanId = null; }
+  if(qrStream) qrStream.getTracks().forEach(t => t.stop());
+  qrStream = null;
+  document.getElementById('screen-qr').classList.remove('active');
+}
+
+// ── AR起動 ──
+async function startAR(qrData) {
   document.getElementById('screen-ar').classList.add('active');
 
   // カメラ起動
   try {
     arStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment', width:{ideal:640}, height:{ideal:480}}
+      video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}}
     });
     const video = document.getElementById('arVideo');
     video.srcObject = arStream;
@@ -119,21 +227,19 @@ async function startAR() {
     return;
   }
 
-  const video = document.getElementById('arVideo');
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-
   // Three.js
   const canvas = document.getElementById('arCanvas');
-  canvas.width = W; canvas.height = H;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
   renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
-  renderer.setSize(W, H);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setClearColor(0x000000, 0);
 
   scene = new THREE.Scene();
-  threeCamera = new THREE.PerspectiveCamera(50, W/H, 0.1, 1000);
-  threeCamera.position.set(0, 0.5, 2);
+  threeCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+  threeCamera.position.set(0, 0.8, 2.5);
   threeCamera.lookAt(0, 0, 0);
 
   scene.add(new THREE.AmbientLight(0xffffff, 1.5));
@@ -146,104 +252,65 @@ async function startAR() {
     model = gltf.scene;
     const box3 = new THREE.Box3().setFromObject(model);
     const size = box3.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    model.scale.setScalar(0.8 / maxDim);
+    model.scale.setScalar(1.2 / Math.max(size.x, size.y, size.z));
+    model.position.set(0, 0, 0);
     model.visible = false;
     scene.add(model);
-    document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
   });
 
-  // jsAruco検出器
-  detector = new AR.Detector();
-  posit = new POS.Posit(MODEL_SIZE, 640);
+  // タップでモデル表示
+  canvas.style.pointerEvents = 'all';
+  canvas.addEventListener('click', toggleModel);
 
-  // 検出用canvas
-  const dc = document.getElementById('detectCanvas');
-  dc.width = 640; dc.height = 480;
-
-  // マーカー検出ループ（15fps）
-  let lastFound = false;
-  let noFoundCount = 0;
-
-  function detect() {
-    detectId = setTimeout(detect, 66);
-    if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
-
-    const ctx = dc.getContext('2d');
-    ctx.drawImage(video, 0, 0, 640, 480);
-    const imageData = ctx.getImageData(0, 0, 640, 480);
-    const markers = detector.detect(imageData);
-
-    // Hiroマーカーid=0を探す
-    const hiro = markers.find(m => m.id === 0);
-
-    if(hiro) {
-      noFoundCount = 0;
-      if(!lastFound) {
-        lastFound = true;
-        if(model) model.visible = true;
-        document.getElementById('arStatus').textContent = '✨ モデルが出た！';
-        document.getElementById('arStatus').classList.add('found');
-        document.getElementById('arSub').textContent = 'スクショで写真を撮ってね📸';
-      }
-
-      // 位置推定してモデルを動かす
-      if(model) {
-        try {
-          const corners = hiro.corners.map(c => ({
-            x: c.x - 320,
-            y: 240 - c.y
-          }));
-          const pose = posit.pose(corners);
-          const r = pose.bestRotation;
-          const t = pose.bestTranslation;
-
-          // 回転行列をThree.jsに適用
-          const rm = new THREE.Matrix4();
-          rm.set(
-            r[0][0], r[0][1], r[0][2], 0,
-            r[1][0], r[1][1], r[1][2], 0,
-            r[2][0], r[2][1], r[2][2], 0,
-            0,       0,       0,       1
-          );
-          model.rotation.setFromRotationMatrix(rm);
-          // 位置（スケール調整）
-          model.position.set(t[0]/60, -t[1]/60 + 0.3, -t[2]/60 + 1.5);
-        } catch(e) {}
-      }
-    } else {
-      noFoundCount++;
-      if(noFoundCount > 5 && lastFound) {
-        lastFound = false;
-        if(model) model.visible = false;
-        document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
-        document.getElementById('arStatus').classList.remove('found');
-        document.getElementById('arSub').textContent = 'Hiroマーカーに向けよう';
-      }
-    }
+  // QRデータを表示
+  if(qrData && qrData !== 'QRスキャン成功！') {
+    document.getElementById('arSub').textContent = 'QR: ' + qrData.slice(0,30);
   }
-  detect();
 
   // レンダリングループ
   function render() {
     animId = requestAnimationFrame(render);
-    if(model && model.visible) model.rotation.y += 0.005;
+    if(model && model.visible) model.rotation.y += 0.008;
     renderer.render(scene, threeCamera);
   }
   render();
 }
 
+function toggleModel() {
+  if(!model) return;
+  modelVisible = !modelVisible;
+  model.visible = modelVisible;
+  const st = document.getElementById('arStatus');
+  const sub = document.getElementById('arSub');
+  const hint = document.querySelector('.ar-tap-hint');
+  if(modelVisible) {
+    st.textContent = '✨ モデルが出た！';
+    st.classList.add('found');
+    sub.textContent = 'もう一度タップで消えるよ';
+    hint.style.display = 'none';
+  } else {
+    st.textContent = '📷 タップでモデルを出してみよう';
+    st.classList.remove('found');
+    sub.textContent = '画面をタップしてみてね';
+    hint.style.display = 'block';
+  }
+}
+
 function stopAR() {
   if(animId){ cancelAnimationFrame(animId); animId = null; }
-  if(detectId){ clearTimeout(detectId); detectId = null; }
   if(arStream) arStream.getTracks().forEach(t => t.stop());
   arStream = null;
+  const canvas = document.getElementById('arCanvas');
+  canvas.removeEventListener('click', toggleModel);
+  canvas.style.pointerEvents = 'none';
   if(renderer){ renderer.dispose(); renderer = null; }
-  scene = null; threeCamera = null; model = null; detector = null;
+  scene = null; threeCamera = null; model = null;
+  modelVisible = false;
   document.getElementById('screen-ar').classList.remove('active');
   document.getElementById('screen-top').classList.add('active');
-  document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
+  document.getElementById('arStatus').textContent = '📷 タップでモデルを出してみよう';
   document.getElementById('arStatus').classList.remove('found');
+  document.querySelector('.ar-tap-hint').style.display = 'block';
 }
 </script>
 </body>
