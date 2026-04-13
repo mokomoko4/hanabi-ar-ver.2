@@ -88,6 +88,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 <!-- QRスキャン -->
 <div id="screen-qr">
   <video id="qrVideo" autoplay playsinline muted></video>
+  <canvas id="qrDetectCanvas" style="display:none;"></canvas>
   <div class="qr-ui">
     <div class="qr-header">
       <div class="qr-back" onclick="stopQR()">←</div>
@@ -128,6 +129,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
@@ -139,7 +141,6 @@ let renderer, scene, threeCamera, model;
 let animId = null;
 let modelVisible = false;
 let qrScanId = null;
-let barcodeDetector = null;
 
 // ── GLB選択 ──
 function handleGLB(input) {
@@ -170,37 +171,31 @@ async function goQR() {
     return;
   }
 
-  // BarcodeDetector API（Chrome/Safari対応）
-  if('BarcodeDetector' in window) {
-    barcodeDetector = new BarcodeDetector({formats:['qr_code']});
-    scanQR();
-  } else {
-    // 非対応の場合はタップでAR起動
-    document.getElementById('qrHint').textContent = 'このブラウザはQR認識非対応です。タップしてARを起動！';
-    document.getElementById('qrHint').style.cursor = 'pointer';
-    document.getElementById('qrHint').style.pointerEvents = 'all';
-    document.getElementById('qrHint').onclick = () => {
-      stopQR();
-      startAR('QRスキャン成功！');
-    };
-  }
+  // jsQRで全ブラウザ対応
+  scanQR();
 }
 
-async function scanQR() {
+function scanQR() {
   const video = document.getElementById('qrVideo');
+  const dc = document.getElementById('qrDetectCanvas');
+  if(!dc) return;
   if(video.readyState === video.HAVE_ENOUGH_DATA) {
-    try {
-      const barcodes = await barcodeDetector.detect(video);
-      if(barcodes.length > 0) {
-        const qrValue = barcodes[0].rawValue;
-        document.getElementById('qrHint').textContent = '✅ QR読み取り成功！';
-        stopQR();
-        startAR(qrValue);
-        return;
-      }
-    } catch(e) {}
+    dc.width = video.videoWidth || 640;
+    dc.height = video.videoHeight || 480;
+    const ctx = dc.getContext('2d');
+    ctx.drawImage(video, 0, 0, dc.width, dc.height);
+    const imageData = ctx.getImageData(0, 0, dc.width, dc.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+    if(code) {
+      document.getElementById('qrHint').textContent = '✅ QR読み取り成功！';
+      stopQR();
+      startAR(code.data);
+      return;
+    }
   }
-  qrScanId = setTimeout(scanQR, 300);
+  qrScanId = setTimeout(scanQR, 200);
 }
 
 function stopQR() {
