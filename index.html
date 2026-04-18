@@ -24,7 +24,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .upload-box.selected .label{color:#88ffaa;}
 .start-btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff6b00,#ffcc00);color:#000;font-size:16px;font-weight:900;cursor:pointer;display:none;margin-bottom:12px;}
 .start-btn.show{display:block;}
-
+ 
 /* AR画面 */
 #screen-ar{display:none;position:fixed;inset:0;}
 #screen-ar.active{display:block;}
@@ -38,13 +38,13 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .ar-bottom{padding:12px 16px 28px;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;gap:8px;pointer-events:all;}
 .ar-btn{flex:1;padding:11px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);color:#fff;font-size:11px;text-align:center;cursor:pointer;}
 .ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
-
+ 
 /* Mind ARのcanvasを全画面に */
 .a-canvas{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;}
 </style>
 </head>
 <body>
-
+ 
 <!-- トップ -->
 <div class="screen active" id="screen-top">
   <div class="top-emoji">🎆</div>
@@ -61,12 +61,12 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     花火の写真が印刷された看板に<br>カメラを向けてね
   </div>
 </div>
-
+ 
 <!-- AR画面 -->
 <div id="screen-ar">
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://mokomoko4.github.io/hanabi-ar/marker.mind; autoStart: true;"
+    mindar-image="imageTargetSrc: https://mokomoko4.github.io/hanabi-ar/marker.mind; autoStart: false;"
     color-space="sRGB"
     renderer="colorManagement: true; physicallyCorrectLights: true;"
     vr-mode-ui="enabled: false"
@@ -75,9 +75,9 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     <a-assets>
       <a-asset-item id="glbModel" src=""></a-asset-item>
     </a-assets>
-
+ 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
+ 
     <a-entity mindar-image-target="targetIndex: 0">
       <a-gltf-model
         id="arModel"
@@ -89,7 +89,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
       ></a-gltf-model>
     </a-entity>
   </a-scene>
-
+ 
   <div class="ar-ui">
     <div class="ar-header">
       <div class="ar-back" onclick="stopAR()">←</div>
@@ -105,11 +105,11 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     </div>
   </div>
 </div>
-
+ 
 <script>
 let glbURL = null;
 let arStarted = false;
-
+ 
 function handleGLB(input) {
   const file = input.files[0];
   if(!file) return;
@@ -120,18 +120,23 @@ function handleGLB(input) {
   box.innerHTML = '<div class="icon">✅</div><div class="label">'+file.name+'</div><div class="sub">'+(file.size/1024).toFixed(1)+'KB</div>';
   document.getElementById('startBtn').classList.add('show');
 }
-
+ 
 function startAR() {
   if(!glbURL) return;
-
+ 
   // GLBをセット
   document.getElementById('glbModel').setAttribute('src', glbURL);
   document.getElementById('arModel').setAttribute('src', '#glbModel');
-
+ 
   // 画面切り替え
   document.getElementById('screen-top').classList.remove('active');
   document.getElementById('screen-ar').classList.add('active');
-
+ 
+  // Mind AR起動
+  const scene = document.getElementById('arScene');
+  const mindar = scene.systems['mindar-image-system'];
+  if(mindar) mindar.start();
+ 
   // マーカー検出イベント（1回だけ登録）
   if(!arStarted) {
     arStarted = true;
@@ -148,9 +153,12 @@ function startAR() {
     });
   }
 }
-
+ 
 function stopAR() {
-
+ 
+  const scene2 = document.getElementById('arScene');
+  const mindar2 = scene2.systems['mindar-image-system'];
+  if(mindar2) mindar2.stop();
   document.getElementById('screen-ar').classList.remove('active');
   document.getElementById('screen-top').classList.add('active');
   document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
