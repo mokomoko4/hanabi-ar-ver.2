@@ -22,7 +22,7 @@ body{overflow:hidden;}
 </style>
 </head>
 <body>
- 
+
 <a-scene
   mindar-image="imageTargetSrc: https://mokomoko4.github.io/hanabi-ar/marker.mind; autoStart: true; filterMinCF: 0.001; filterBeta: 0.001; missTolerance: 99999;"
   color-space="sRGB"
@@ -33,9 +33,9 @@ body{overflow:hidden;}
   <a-assets>
     <a-asset-item id="glbModel" src=""></a-asset-item>
   </a-assets>
- 
+
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
- 
+
   <a-entity mindar-image-target="targetIndex: 0">
     <a-gltf-model
       id="arModel"
@@ -47,7 +47,7 @@ body{overflow:hidden;}
     ></a-gltf-model>
   </a-entity>
 </a-scene>
- 
+
 <div class="ar-ui">
   <div class="ar-header">
     <a class="ar-back" href="index.html">←</a>
@@ -62,7 +62,7 @@ body{overflow:hidden;}
     <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
   </div>
 </div>
- 
+
 <script>
 // sessionStorageからGLBデータを取得
 const glbData = sessionStorage.getItem('glbData');
@@ -72,7 +72,7 @@ if(!glbData) {
   document.getElementById('glbModel').setAttribute('src', glbData);
   document.getElementById('arModel').setAttribute('src', '#glbModel');
 }
- 
+
 // マーカー検出イベント
 document.querySelector('a-scene').addEventListener('loaded', () => {
   const target = document.querySelector('[mindar-image-target]');
