@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>はなびAR</title>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{overflow:hidden;}
+.ar-ui{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;pointer-events:none;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;}
+.ar-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
+.ar-back{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:#fff;text-decoration:none;}
+.ar-title{font-size:14px;font-weight:700;color:#ffcc44;}
+.ar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
+.ar-status{margin:auto auto 0;padding:8px 20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:12px;color:rgba(255,255,255,0.8);text-align:center;transition:all 0.4s;}
+.ar-status.found{border-color:rgba(100,255,150,0.5);color:#88ffaa;background:rgba(0,40,20,0.7);}
+.ar-bottom{padding:12px 16px 28px;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;gap:8px;pointer-events:all;}
+.ar-btn{flex:1;padding:11px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);color:#fff;font-size:11px;text-align:center;cursor:pointer;}
+.ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+</style>
+</head>
+<body>
+ 
+<a-scene
+  mindar-image="imageTargetSrc: https://mokomoko4.github.io/hanabi-ar/marker.mind; autoStart: true;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets>
+    <a-asset-item id="glbModel" src=""></a-asset-item>
+  </a-assets>
+ 
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+ 
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-gltf-model
+      id="arModel"
+      src="#glbModel"
+      position="0 0 0.1"
+      rotation="0 0 0"
+      scale="0.3 0.3 0.3"
+      animation="property: rotation; to: 0 360 0; loop: true; dur: 6000; easing: linear"
+    ></a-gltf-model>
+  </a-entity>
+</a-scene>
+ 
+<div class="ar-ui">
+  <div class="ar-header">
+    <a class="ar-back" href="index.html">←</a>
+    <div>
+      <div class="ar-title">花火の写真に向けてね</div>
+      <div class="ar-sub" id="arSub">看板やポスターにカメラを向けよう</div>
+    </div>
+  </div>
+  <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
+  <div class="ar-bottom">
+    <div class="ar-btn" onclick="window.location.href='index.html'"><span class="bi">←</span>もどる</div>
+    <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
+  </div>
+</div>
+ 
+<script>
+// sessionStorageからGLBデータを取得
+const glbData = sessionStorage.getItem('glbData');
+if(!glbData) {
+  window.location.href = 'index.html';
+} else {
+  document.getElementById('glbModel').setAttribute('src', glbData);
+  document.getElementById('arModel').setAttribute('src', '#glbModel');
+}
+ 
+// マーカー検出イベント
+document.querySelector('a-scene').addEventListener('loaded', () => {
+  const target = document.querySelector('[mindar-image-target]');
+  target.addEventListener('targetFound', () => {
+    document.getElementById('arStatus').textContent = '✨ モデルが出た！';
+    document.getElementById('arStatus').classList.add('found');
+    document.getElementById('arSub').textContent = 'スクショで写真を撮ってね📸';
+  });
+  target.addEventListener('targetLost', () => {
+    document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
+    document.getElementById('arStatus').classList.remove('found');
+    document.getElementById('arSub').textContent = '看板やポスターにカメラを向けよう';
+  });
+});
+</script>
+</body>
+</html>
