@@ -41,7 +41,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
       <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
-    <div class="ar-ver">v3.1</div>
+    <div class="ar-ver">v3.2</div>
   </div>
   <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
   <div class="ar-bottom">
@@ -131,7 +131,6 @@ function addWork(work) {
     mesh = new THREE.Mesh(geo, mat);
   } else if(work.type === 'png' && work.url) {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const tex = new THREE.Texture(img);
       tex.needsUpdate = true;
