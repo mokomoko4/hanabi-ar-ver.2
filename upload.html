@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>さくひんをアップする</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#06001a;--panel:#0f0028;--gold:#ffcc44;--gold2:#ff8800;--text:#fff;--muted:rgba(255,255,255,0.5);--border:rgba(255,255,255,0.12);}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;padding:0 0 40px;}
+
+.header{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,rgba(6,0,26,0.98) 0%,transparent 100%);position:sticky;top:0;z-index:10;}
+.back{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:#fff;text-decoration:none;}
+.header-title{font-size:15px;font-weight:700;color:var(--gold);}
+.header-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+
+.body{padding:16px;}
+
+/* プレビュー */
+.preview-wrap{
+  width:100%;aspect-ratio:1;max-width:280px;
+  margin:0 auto 20px;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;cursor:pointer;
+}
+.preview-wrap img{width:100%;height:100%;object-fit:contain;}
+.preview-placeholder{text-align:center;color:var(--muted);}
+.preview-placeholder .icon{font-size:48px;margin-bottom:8px;}
+.preview-placeholder .text{font-size:13px;}
+.preview-placeholder .sub{font-size:11px;margin-top:4px;color:rgba(255,255,255,0.25);}
+.preview-badge{
+  position:absolute;top:10px;right:10px;
+  padding:3px 10px;border-radius:20px;
+  font-size:10px;font-weight:700;
+}
+.preview-badge.png{background:rgba(100,255,150,0.2);color:#88ffaa;border:1px solid rgba(100,255,150,0.3);}
+.preview-badge.glb{background:rgba(100,180,255,0.2);color:#88ddff;border:1px solid rgba(100,180,255,0.3);}
+
+/* 入力 */
+.section-label{font-size:11px;color:var(--muted);letter-spacing:0.1em;margin-bottom:8px;margin-top:20px;display:flex;align-items:center;gap:6px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.name-input{width:100%;padding:12px 16px;background:var(--panel);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;outline:none;font-family:inherit;}
+.name-input::placeholder{color:var(--muted);}
+.name-input:focus{border-color:rgba(255,200,60,0.4);}
+
+/* ファイル選択ボタン */
+.file-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.file-btn{padding:12px 8px;border-radius:12px;border:1.5px dashed rgba(255,255,255,0.2);background:transparent;color:var(--muted);font-size:12px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.file-btn:active{transform:scale(0.97);}
+.file-btn.png-btn{border-color:rgba(100,255,150,0.3);}
+.file-btn.glb-btn{border-color:rgba(100,180,255,0.3);}
+.file-btn .bi{font-size:24px;display:block;margin-bottom:4px;}
+
+/* アップロードボタン */
+.upload-btn{
+  width:100%;padding:16px;border:none;border-radius:16px;
+  background:linear-gradient(135deg,#ff6b00,#ffcc00);
+  color:#000;font-size:16px;font-weight:900;
+  cursor:pointer;margin-top:24px;
+  display:none;transition:all 0.15s;
+}
+.upload-btn.show{display:block;}
+.upload-btn:active{transform:scale(0.97);}
+.upload-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* 進捗 */
+.progress-wrap{margin-top:16px;display:none;}
+.progress-wrap.show{display:block;}
+.progress-bar-bg{width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;}
+.progress-bar{height:100%;background:linear-gradient(90deg,#ff6b00,#ffcc00);border-radius:3px;width:0%;transition:width 0.3s;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:6px;text-align:center;}
+
+/* 成功 */
+.success-msg{
+  display:none;margin-top:16px;padding:16px;
+  background:rgba(100,255,150,0.08);
+  border:1px solid rgba(100,255,150,0.3);
+  border-radius:12px;text-align:center;
+}
+.success-msg.show{display:block;}
+.success-msg .emoji{font-size:32px;margin-bottom:8px;}
+.success-msg p{font-size:13px;color:#88ffaa;}
+
+/* 作品一覧 */
+.works-list{margin-top:24px;}
+.work-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;
+  margin-bottom:8px;
+}
+.work-thumb{
+  width:48px;height:48px;border-radius:8px;
+  background:rgba(255,255,255,0.06);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;overflow:hidden;
+}
+.work-thumb img{width:100%;height:100%;object-fit:cover;}
+.work-info{flex:1;min-width:0;}
+.work-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.work-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+.work-delete{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,100,100,0.3);background:transparent;color:rgba(255,100,100,0.7);font-size:11px;cursor:pointer;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back" href="index.html">←</a>
+  <div>
+    <div class="header-title">さくひんをアップする</div>
+    <div class="header-sub">えやモデルをARにのせよう</div>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- プレビュー -->
+  <div class="preview-wrap" id="previewWrap" onclick="document.getElementById('pngInput').click()">
+    <div class="preview-placeholder" id="previewPlaceholder">
+      <div class="icon">🖼️</div>
+      <div class="text">タップして画像を選ぶ</div>
+      <div class="sub">PNG・JPG・GIF対応</div>
+    </div>
+  </div>
+  <input type="file" id="pngInput" accept="image/*" style="display:none;" onchange="handlePNG(this)">
+  <input type="file" id="glbInput" accept=".glb,.gltf" style="display:none;" onchange="handleGLB(this)">
+
+  <!-- 名前 -->
+  <div class="section-label">なまえ</div>
+  <input class="name-input" id="nameInput" type="text" placeholder="だれがつくったか書いてね" maxlength="20">
+
+  <!-- ファイル選択 -->
+  <div class="section-label">ファイルを選ぶ</div>
+  <div class="file-btns">
+    <div class="file-btn png-btn" onclick="document.getElementById('pngInput').click()">
+      <span class="bi">🖼️</span>
+      えや写真<br>（PNG・JPG）
+    </div>
+    <div class="file-btn glb-btn" onclick="document.getElementById('glbInput').click()">
+      <span class="bi">🧊</span>
+      3Dモデル<br>（GLB）
+    </div>
+  </div>
+
+  <!-- アップロードボタン -->
+  <button class="upload-btn" id="uploadBtn" onclick="uploadWork()">ARにのせる 🚀</button>
+
+  <!-- 進捗 -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText">アップロード中…</div>
+  </div>
+
+  <!-- 成功メッセージ -->
+  <div class="success-msg" id="successMsg">
+    <div class="emoji">🎆</div>
+    <p>ARに追加されました！<br>看板にカメラを向けると出てくるよ！</p>
+  </div>
+
+  <!-- 作品一覧 -->
+  <div class="section-label" style="margin-top:32px;">いまのさくひん一覧</div>
+  <div class="works-list" id="worksList">
+    <div style="font-size:12px;color:var(--muted);text-align:center;padding:16px;">読み込み中…</div>
+  </div>
+
+</div>
+
+<script>
+// Firebase設定
+const firebaseConfig = {
+  apiKey: "AIzaSyDGlQeMC6iJzWAB16teP_5oC2FeBcgZxmA",
+  authDomain: "hanabi-ar-1754a.firebaseapp.com",
+  databaseURL: "https://hanabi-ar-1754a-default-rtdb.firebaseio.com",
+  projectId: "hanabi-ar-1754a",
+  storageBucket: "hanabi-ar-1754a.firebasestorage.app",
+  messagingSenderId: "861479696200",
+  appId: "1:861479696200:web:393add8997cf25affd657d"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const storage = firebase.storage();
+
+let selectedFile = null;
+let selectedType = null;
+
+// PNG選択
+function handlePNG(input) {
+  const file = input.files[0];
+  if(!file) return;
+  selectedFile = file;
+  selectedType = 'png';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.getElementById('previewWrap');
+    wrap.innerHTML = `
+      <img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;">
+      <div class="preview-badge png">PNG</div>
+    `;
+    wrap.onclick = () => document.getElementById('pngInput').click();
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('uploadBtn').classList.add('show');
+  document.getElementById('successMsg').classList.remove('show');
+}
+
+// GLB選択
+function handleGLB(input) {
+  const file = input.files[0];
+  if(!file) return;
+  selectedFile = file;
+  selectedType = 'glb';
+
+  const wrap = document.getElementById('previewWrap');
+  wrap.innerHTML = `
+    <div class="preview-placeholder">
+      <div class="icon">🧊</div>
+      <div class="text">${file.name}</div>
+      <div class="sub">${(file.size/1024).toFixed(0)}KB</div>
+    </div>
+    <div class="preview-badge glb">GLB</div>
+  `;
+  wrap.onclick = () => document.getElementById('glbInput').click();
+  document.getElementById('uploadBtn').classList.add('show');
+  document.getElementById('successMsg').classList.remove('show');
+}
+
+// アップロード
+async function uploadWork() {
+  if(!selectedFile) return;
+
+  const name = document.getElementById('nameInput').value.trim() || 'なまえなし';
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.textContent = 'アップロード中…';
+
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressText').textContent = 'ファイルを送っています…';
+
+  try {
+    // Storageにアップロード
+    const ext = selectedType === 'glb' ? 'glb' : selectedFile.name.split('.').pop();
+    const filename = `works/${Date.now()}_${name}.${ext}`;
+    const ref = storage.ref(filename);
+    const task = ref.put(selectedFile);
+
+    // 進捗表示
+    task.on('state_changed', (snap) => {
+      const pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').textContent = `${Math.round(pct)}% 完了`;
+    });
+
+    await task;
+    const url = await ref.getDownloadURL();
+
+    // Databaseに登録
+    await db.ref('works').push({
+      type: selectedType,
+      url: url,
+      name: name,
+      createdAt: Date.now()
+    });
+
+    // 成功
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = '完了！';
+    document.getElementById('successMsg').classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'ARにのせる 🚀';
+
+    // リセット
+    selectedFile = null;
+    selectedType = null;
+    document.getElementById('nameInput').value = '';
+    document.getElementById('previewWrap').innerHTML = `
+      <div class="preview-placeholder" id="previewPlaceholder">
+        <div class="icon">🖼️</div>
+        <div class="text">タップして画像を選ぶ</div>
+        <div class="sub">PNG・JPG・GIF対応</div>
+      </div>
+    `;
+    document.getElementById('previewWrap').onclick = () => document.getElementById('pngInput').click();
+    document.getElementById('pngInput').value = '';
+    document.getElementById('glbInput').value = '';
+
+  } catch(e) {
+    alert('エラーが発生しました: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'ARにのせる 🚀';
+  }
+}
+
+// 作品一覧をリアルタイム表示
+db.ref('works').on('value', (snap) => {
+  const list = document.getElementById('worksList');
+  const works = snap.val();
+
+  if(!works) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px;">まだ作品がありません</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  Object.entries(works).reverse().forEach(([key, work]) => {
+    const item = document.createElement('div');
+    item.className = 'work-item';
+    const thumb = work.type === 'png'
+      ? `<img src="${work.url}" style="width:100%;height:100%;object-fit:cover;">`
+      : `<span style="font-size:24px;">🧊</span>`;
+    const date = new Date(work.createdAt).toLocaleDateString('ja-JP');
+    item.innerHTML = `
+      <div class="work-thumb">${thumb}</div>
+      <div class="work-info">
+        <div class="work-name">${work.name || 'なまえなし'}</div>
+        <div class="work-meta">${work.type.toUpperCase()} · ${date}</div>
+      </div>
+      <button class="work-delete" onclick="deleteWork('${key}', '${work.url}')">削除</button>
+    `;
+    list.appendChild(item);
+  });
+});
+
+// 削除
+async function deleteWork(key, url) {
+  if(!confirm('この作品を削除しますか？')) return;
+  await db.ref('works/' + key).remove();
+  try {
+    await storage.refFromURL(url).delete();
+  } catch(e) {}
+}
+</script>
+</body>
+</html>
