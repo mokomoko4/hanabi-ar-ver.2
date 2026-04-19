@@ -184,9 +184,10 @@ function loadWorks() {
 }
 
 // ══ マーカー検出イベント ══
-document.querySelector('a-scene').addEventListener('loaded', () => {
-  loadWorks();
+// 先にFirebaseからデータを読み込んでおく
+loadWorks();
 
+document.querySelector('a-scene').addEventListener('loaded', () => {
   const target = document.querySelector('[mindar-image-target]');
   target.addEventListener('targetFound', () => {
     document.getElementById('arStatus').textContent = '✨ 作品が飛び出した！';
