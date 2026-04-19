@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>はなびAR</title>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;}
+.ar-ui{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;pointer-events:none;}
+.ar-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
+.ar-back{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:#fff;text-decoration:none;}
+.ar-title{font-size:14px;font-weight:700;color:#ffcc44;}
+.ar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
+.ar-count{margin-left:auto;padding:4px 12px;border-radius:20px;background:rgba(255,200,60,0.15);border:1px solid rgba(255,200,60,0.3);font-size:11px;color:#ffcc44;}
+.ar-status{margin:auto auto 0;padding:8px 20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:12px;color:rgba(255,255,255,0.8);text-align:center;transition:all 0.4s;}
+.ar-status.found{border-color:rgba(100,255,150,0.5);color:#88ffaa;background:rgba(0,40,20,0.7);}
+.ar-bottom{padding:12px 16px 28px;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;gap:8px;pointer-events:all;}
+.ar-btn{flex:1;padding:11px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);color:#fff;font-size:11px;text-align:center;cursor:pointer;}
+.ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+</style>
+</head>
+<body>
+
+<a-scene
+  mindar-image="imageTargetSrc: https://mokomoko4.github.io/hanabi-ar/marker.mind; autoStart: true;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets id="arAssets" timeout="30000"></a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <!-- マーカーに紐づくエンティティ -->
+  <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
+    <!-- 作品はここにJSで動的に追加される -->
+    <a-entity id="worksContainer"></a-entity>
+  </a-entity>
+</a-scene>
+
+<div class="ar-ui">
+  <div class="ar-header">
+    <a class="ar-back" href="index.html">←</a>
+    <div>
+      <div class="ar-title">花火の写真に向けてね</div>
+      <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
+    </div>
+    <div class="ar-count" id="arCount">0 作品</div>
+  </div>
+  <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
+  <div class="ar-bottom">
+    <div class="ar-btn" onclick="window.location.href='index.html'"><span class="bi">←</span>もどる</div>
+    <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
+  </div>
+</div>
+
+<script>
+// ══ Firebase設定（後で自分のFirebaseの設定に差し替える） ══
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+};
+
+// Firebaseが設定されてるか確認
+const firebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null, storage = null;
+
+if(firebaseReady) {
+  const app = firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  storage = firebase.storage();
+}
+
+// ══ デモ用作品データ（Firebase未設定時に表示） ══
+const DEMO_WORKS = [
+  { id:'demo1', type:'canvas', color:'#ff6b6b', emoji:'🎆', label:'はなびだ！',    x:-0.8, y:0.5,  z:0.3 },
+  { id:'demo2', type:'canvas', color:'#ffcc44', emoji:'🌟', label:'ほしがすき',    x:0,    y:0.8,  z:0.2 },
+  { id:'demo3', type:'canvas', color:'#66dd44', emoji:'🎨', label:'えをかいたよ',  x:0.8,  y:0.5,  z:0.3 },
+  { id:'demo4', type:'canvas', color:'#4488ff', emoji:'🌈', label:'にじいろ',      x:-0.5, y:0.2,  z:0.5 },
+  { id:'demo5', type:'canvas', color:'#cc66ff', emoji:'🦊', label:'きつねくん',    x:0.5,  y:0.2,  z:0.5 },
+  { id:'demo6', type:'canvas', color:'#ff88bb', emoji:'🌸', label:'はなびら',      x:0,    y:-0.2, z:0.6 },
+];
+
+// ══ 作品をARに追加 ══
+const addedIds = new Set();
+
+function addWork(work) {
+  if(addedIds.has(work.id)) return;
+  addedIds.add(work.id);
+
+  const container = document.getElementById('worksContainer');
+  const entity = document.createElement('a-entity');
+
+  // 位置（マーカーを中心に周囲に配置）
+  const x = work.x || (Math.random()-0.5)*2;
+  const y = work.y || Math.random()*0.8;
+  const z = work.z || Math.random()*0.5;
+  entity.setAttribute('position', `${x} ${y} ${z}`);
+
+  // 浮遊アニメ
+  const from = `${x} ${y} ${z}`;
+  const to   = `${x} ${y+0.08} ${z}`;
+  entity.setAttribute('animation', `property:position;from:${from};to:${to};dir:alternate;dur:${1500+Math.random()*1000};loop:true;easing:ease-in-out-sine`);
+
+  if(work.type === 'png' && work.url) {
+    // PNG画像
+    const imgEl = document.createElement('a-image');
+    imgEl.setAttribute('src', work.url);
+    imgEl.setAttribute('width', '0.6');
+    imgEl.setAttribute('height', '0.6');
+    imgEl.setAttribute('look-at', '[camera]');
+    entity.appendChild(imgEl);
+
+  } else if(work.type === 'glb' && work.url) {
+    // GLBモデル
+    const modelEl = document.createElement('a-gltf-model');
+    modelEl.setAttribute('src', work.url);
+    modelEl.setAttribute('scale', '0.3 0.3 0.3');
+    modelEl.setAttribute('animation__rot', 'property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear');
+    entity.appendChild(modelEl);
+
+  } else if(work.type === 'canvas') {
+    // デモ用Canvas画像
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = work.color;
+    ctx.beginPath();
+    ctx.roundRect(0,0,256,256,32);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.roundRect(12,12,232,232,24);
+    ctx.fill();
+    ctx.font = '72px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(work.emoji, 128, 100);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(work.label, 128, 190);
+
+    // CanvasテクスチャをA-Frameに適用
+    const imgData = cv.toDataURL();
+    const imgEl = document.createElement('a-image');
+    imgEl.setAttribute('src', imgData);
+    imgEl.setAttribute('width', '0.55');
+    imgEl.setAttribute('height', '0.55');
+    imgEl.setAttribute('look-at', '[camera]');
+    entity.appendChild(imgEl);
+  }
+
+  container.appendChild(entity);
+  document.getElementById('arCount').textContent = addedIds.size + ' 作品';
+}
+
+// ══ Firebase or デモデータを読み込む ══
+function loadWorks() {
+  if(firebaseReady && db) {
+    // Firebaseからリアルタイムで読み込む
+    db.ref('works').on('child_added', (snap) => {
+      const work = snap.val();
+      work.id = snap.key;
+      addWork(work);
+    });
+  } else {
+    // デモデータを表示
+    DEMO_WORKS.forEach(w => addWork(w));
+    document.getElementById('arSub').textContent = 'デモモード（Firebase未設定）';
+  }
+}
+
+// ══ マーカー検出イベント ══
+document.querySelector('a-scene').addEventListener('loaded', () => {
+  loadWorks();
+
+  const target = document.querySelector('[mindar-image-target]');
+  target.addEventListener('targetFound', () => {
+    document.getElementById('arStatus').textContent = '✨ 作品が飛び出した！';
+    document.getElementById('arStatus').classList.add('found');
+    document.getElementById('arSub').textContent = 'スクショで写真を撮ってね📸';
+  });
+  target.addEventListener('targetLost', () => {
+    document.getElementById('arStatus').textContent = '📷 マーカーを探しています…';
+    document.getElementById('arStatus').classList.remove('found');
+    document.getElementById('arSub').textContent = '看板の花火写真にカメラを向けよう';
+  });
+});
+</script>
+</body>
+</html>
