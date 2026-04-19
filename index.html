@@ -8,57 +8,19 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:#06001a;color:#fff;height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
 body{background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);}
-.top-emoji{font-size:64px;animation:float 3s ease-in-out infinite;margin-bottom:16px;}
+.emoji{font-size:64px;animation:float 3s ease-in-out infinite;margin-bottom:16px;}
 @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
-.top-title{font-size:28px;font-weight:900;text-align:center;line-height:1.3;margin-bottom:12px;background:linear-gradient(135deg,#ffcc44,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.top-desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:24px;}
-.upload-box{width:100%;max-width:320px;border:2px dashed rgba(100,180,255,0.5);border-radius:20px;padding:24px;text-align:center;cursor:pointer;background:rgba(100,180,255,0.06);transition:all 0.2s;margin-bottom:12px;}
-.upload-box .icon{font-size:40px;margin-bottom:8px;}
-.upload-box .label{font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:4px;}
-.upload-box .sub{font-size:11px;color:rgba(255,255,255,0.35);}
-.upload-box.selected{border-color:rgba(100,255,150,0.6);background:rgba(100,255,150,0.08);}
-.upload-box.selected .label{color:#88ffaa;}
-.start-btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff6b00,#ffcc00);color:#000;font-size:16px;font-weight:900;cursor:pointer;display:none;margin-bottom:12px;}
-.start-btn.show{display:block;}
-.hint{font-size:11px;color:rgba(255,255,255,0.3);text-align:center;max-width:280px;}
+.title{font-size:28px;font-weight:900;text-align:center;line-height:1.3;margin-bottom:12px;background:linear-gradient(135deg,#ffcc44,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:32px;}
+.btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff6b00,#ffcc00);color:#000;font-size:16px;font-weight:900;cursor:pointer;margin-bottom:12px;}
+.btn-sub{width:100%;max-width:320px;padding:14px;border:1px solid rgba(255,255,255,0.2);border-radius:16px;background:rgba(255,255,255,0.05);color:#fff;font-size:14px;cursor:pointer;}
 </style>
 </head>
 <body>
-  <div class="top-emoji">🎆</div>
-  <div class="top-title">はなびAR<br>あそび</div>
-  <div class="top-desc">GLBを選んで花火の写真に<br>カメラを向けると3Dモデルが出るよ！</div>
-  <div class="upload-box" id="uploadBox" onclick="document.getElementById('glbInput').click()">
-    <div class="icon">🧊</div>
-    <div class="label">GLBファイルを選ぶ</div>
-    <div class="sub">タップしてファイルを選択</div>
-  </div>
-  <input type="file" id="glbInput" accept=".glb,.gltf" style="display:none;" onchange="handleGLB(this)">
-  <button class="start-btn" id="startBtn" onclick="startAR()">ARをはじめる ▶</button>
-  <div class="hint">花火の写真が印刷された看板に<br>カメラを向けてね</div>
- 
-<script>
-let glbDataURL = null;
- 
-function handleGLB(input) {
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    glbDataURL = e.target.result;
-    const box = document.getElementById('uploadBox');
-    box.classList.add('selected');
-    box.innerHTML = '<div class="icon">✅</div><div class="label">'+file.name+'</div><div class="sub">'+(file.size/1024).toFixed(1)+'KB</div>';
-    document.getElementById('startBtn').classList.add('show');
-  };
-  reader.readAsDataURL(file);
-}
- 
-function startAR() {
-  if(!glbDataURL) return;
-  // GLBデータをsessionStorageに保存してar.htmlへ
-  sessionStorage.setItem('glbData', glbDataURL);
-  window.location.href = 'ar.html';
-}
-</script>
+  <div class="emoji">🎆</div>
+  <div class="title">はなびAR<br>あそび</div>
+  <div class="desc">QRコードを読んで<br>みんなの作品が浮かぶ空間へ！</div>
+  <button class="btn" onclick="window.location.href='world.html'">🌍 AR空間に入る</button>
+  <button class="btn-sub" onclick="window.location.href='upload.html'">🎨 作品をアップする</button>
 </body>
 </html>
