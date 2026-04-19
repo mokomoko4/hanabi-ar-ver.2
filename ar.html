@@ -41,7 +41,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
       <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
-    <div class="ar-ver">v3.0</div>
+    <div class="ar-ver">v3.1</div>
   </div>
   <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
   <div class="ar-bottom">
@@ -130,12 +130,32 @@ function addWork(work) {
     const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
     mesh = new THREE.Mesh(geo, mat);
   } else if(work.type === 'png' && work.url) {
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
-    const tex = loader.load(work.url);
-    const geo = new THREE.PlaneGeometry(0.7, 0.7);
-    const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
-    mesh = new THREE.Mesh(geo, mat);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const tex = new THREE.Texture(img);
+      tex.needsUpdate = true;
+      const aspect = img.width / img.height;
+      const geo = new THREE.PlaneGeometry(0.7 * aspect, 0.7);
+      const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, 0);
+      scene.add(m);
+      works.push({mesh:m, baseY:y, phase:Math.random()*Math.PI*2});
+      document.getElementById('arCount').textContent = addedIds.size + ' 作品';
+    };
+    img.onerror = () => {
+      // エラー時はCanvasで代替表示
+      const tex = makeCanvasTexture('#888888', '🖼️', work.name||'作品');
+      const geo = new THREE.PlaneGeometry(0.7, 0.7);
+      const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
+      mesh = new THREE.Mesh(geo, mat);
+      if(mesh){ mesh.position.set(x,y,0); scene.add(mesh); works.push({mesh, baseY:y, phase:Math.random()*Math.PI*2}); }
+      document.getElementById('arCount').textContent = addedIds.size + ' 作品';
+    };
+    img.src = work.url;
+    document.getElementById('arCount').textContent = addedIds.size + ' 作品';
+    return;
   } else if(work.type === 'glb' && work.url) {
     const loader = new THREE.GLTFLoader();
     loader.load(work.url, (gltf) => {
