@@ -86,12 +86,12 @@ if(firebaseReady) {
 
 // ══ デモ用作品データ（Firebase未設定時に表示） ══
 const DEMO_WORKS = [
-  { id:'demo1', type:'canvas', color:'#ff6b6b', emoji:'🎆', label:'はなびだ！',    x:-0.8, y:0.5,  z:0.3 },
-  { id:'demo2', type:'canvas', color:'#ffcc44', emoji:'🌟', label:'ほしがすき',    x:0,    y:0.8,  z:0.2 },
-  { id:'demo3', type:'canvas', color:'#66dd44', emoji:'🎨', label:'えをかいたよ',  x:0.8,  y:0.5,  z:0.3 },
-  { id:'demo4', type:'canvas', color:'#4488ff', emoji:'🌈', label:'にじいろ',      x:-0.5, y:0.2,  z:0.5 },
-  { id:'demo5', type:'canvas', color:'#cc66ff', emoji:'🦊', label:'きつねくん',    x:0.5,  y:0.2,  z:0.5 },
-  { id:'demo6', type:'canvas', color:'#ff88bb', emoji:'🌸', label:'はなびら',      x:0,    y:-0.2, z:0.6 },
+  { id:'demo1', type:'canvas', color:'#ff6b6b', emoji:'🎆', label:'はなびだ！',    x:-0.3, y:0.3,  z:0.1 },
+  { id:'demo2', type:'canvas', color:'#ffcc44', emoji:'🌟', label:'ほしがすき',    x:0,    y:0.5,  z:0.1 },
+  { id:'demo3', type:'canvas', color:'#66dd44', emoji:'🎨', label:'えをかいたよ',  x:0.3,  y:0.3,  z:0.1 },
+  { id:'demo4', type:'canvas', color:'#4488ff', emoji:'🌈', label:'にじいろ',      x:-0.3, y:0,    z:0.1 },
+  { id:'demo5', type:'canvas', color:'#cc66ff', emoji:'🦊', label:'きつねくん',    x:0.3,  y:0,    z:0.1 },
+  { id:'demo6', type:'canvas', color:'#ff88bb', emoji:'🌸', label:'はなびら',      x:0,    y:-0.2, z:0.1 },
 ];
 
 // ══ 作品をARに追加 ══
@@ -119,8 +119,8 @@ function addWork(work) {
     // PNG画像
     const imgEl = document.createElement('a-image');
     imgEl.setAttribute('src', work.url);
-    imgEl.setAttribute('width', '0.6');
-    imgEl.setAttribute('height', '0.6');
+    imgEl.setAttribute('width', '0.4');
+    imgEl.setAttribute('height', '0.4');
     imgEl.setAttribute('look-at', '[camera]');
     entity.appendChild(imgEl);
 
@@ -157,8 +157,8 @@ function addWork(work) {
     const imgData = cv.toDataURL();
     const imgEl = document.createElement('a-image');
     imgEl.setAttribute('src', imgData);
-    imgEl.setAttribute('width', '0.55');
-    imgEl.setAttribute('height', '0.55');
+    imgEl.setAttribute('width', '0.4');
+    imgEl.setAttribute('height', '0.4');
     imgEl.setAttribute('look-at', '[camera]');
     entity.appendChild(imgEl);
   }
