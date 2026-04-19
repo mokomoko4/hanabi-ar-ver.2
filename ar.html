@@ -41,7 +41,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
       <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
-    <div class="ar-ver">v3.3</div>
+    <div class="ar-ver">v3.4</div>
   </div>
   <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
   <div class="ar-bottom">
@@ -130,35 +130,56 @@ function addWork(work) {
     const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
     mesh = new THREE.Mesh(geo, mat);
   } else if(work.type === 'png' && work.url) {
-    const img = new Image();
-    img.onload = () => {
-      // CanvasにリサイズしてからTextureに変換
-      const cv = document.createElement('canvas');
-      const maxSize = 512;
-      const aspect = img.width / img.height;
-      cv.width = aspect >= 1 ? maxSize : maxSize * aspect;
-      cv.height = aspect >= 1 ? maxSize / aspect : maxSize;
-      const ctx = cv.getContext('2d');
-      ctx.drawImage(img, 0, 0, cv.width, cv.height);
-      const tex = new THREE.CanvasTexture(cv);
-      const geo = new THREE.PlaneGeometry(0.7 * aspect, 0.7);
-      const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(x, y, 0);
-      scene.add(m);
-      works.push({mesh:m, baseY:y, phase:Math.random()*Math.PI*2});
-      document.getElementById('arCount').textContent = addedIds.size + ' 作品';
-    };
-    img.onerror = () => {
-      // エラー時はCanvasで代替表示
-      const tex = makeCanvasTexture('#888888', '🖼️', work.name||'作品');
-      const geo = new THREE.PlaneGeometry(0.7, 0.7);
-      const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
-      mesh = new THREE.Mesh(geo, mat);
-      if(mesh){ mesh.position.set(x,y,0); scene.add(mesh); works.push({mesh, baseY:y, phase:Math.random()*Math.PI*2}); }
-      document.getElementById('arCount').textContent = addedIds.size + ' 作品';
-    };
-    img.src = work.url;
+    // HTMLのimgタグをARキャンバスに重ねて表示
+    const imgEl = document.createElement('img');
+    imgEl.src = work.url;
+    imgEl.style.cssText = `
+      position:fixed;
+      width:120px;height:120px;
+      object-fit:contain;
+      border-radius:12px;
+      border:2px solid rgba(255,255,255,0.3);
+      pointer-events:none;
+      z-index:5;
+      transition:transform 0.1s;
+    `;
+    // 画面上の位置を計算（円形に配置）
+    const cx = window.innerWidth/2  + x * 120;
+    const cy = window.innerHeight/2 - y * 120;
+    imgEl.style.left = (cx - 60) + 'px';
+    imgEl.style.top  = (cy - 60) + 'px';
+
+    // 名前タグ
+    const nameEl = document.createElement('div');
+    nameEl.textContent = work.name || 'なまえなし';
+    nameEl.style.cssText = `
+      position:fixed;
+      left:${cx - 60}px;
+      top:${cy + 65}px;
+      width:120px;
+      text-align:center;
+      font-size:11px;
+      color:#fff;
+      background:rgba(0,0,0,0.6);
+      border-radius:10px;
+      padding:2px 6px;
+      pointer-events:none;
+      z-index:5;
+    `;
+
+    document.body.appendChild(imgEl);
+    document.body.appendChild(nameEl);
+
+    // ふわふわアニメ
+    let ft = Math.random()*Math.PI*2;
+    const baseTop = cy - 60;
+    setInterval(() => {
+      ft += 0.03;
+      const offset = Math.sin(ft) * 8;
+      imgEl.style.top = (baseTop + offset) + 'px';
+      nameEl.style.top = (baseTop + 125 + offset) + 'px';
+    }, 16);
+
     document.getElementById('arCount').textContent = addedIds.size + ' 作品';
     return;
   } else if(work.type === 'glb' && work.url) {
