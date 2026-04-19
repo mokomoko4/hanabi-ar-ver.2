@@ -12,6 +12,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
+/* Mind ARのローディング画面を非表示 */
+.mindar-ui-overlay{display:none!important;}
+.mindar-ui-scanning{display:none!important;}
 body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;}
 .ar-ui{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;pointer-events:none;}
 .ar-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
@@ -54,6 +57,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
       <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:4px;">v2.1</div>
   </div>
   <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
   <div class="ar-bottom">
