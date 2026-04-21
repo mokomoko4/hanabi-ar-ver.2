@@ -42,7 +42,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
       <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
-    <div class="ar-ver">v4.3</div>
+    <div class="ar-ver">v4.4</div>
   </div>
   <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
   <div class="ar-bottom">
@@ -333,8 +333,8 @@ function updateOverlayPositions() {
     const baseY = parseFloat(el.dataset.baseY);
 
     // ジャイロのずれを位置に反映
-    const offsetX = -yawDeg * 2;
-    const offsetY = pitchDeg * 2;
+    const offsetX = -yawDeg * 5;
+    const offsetY = pitchDeg * 5;
 
     const newLeft = baseX + offsetX;
     const newTop  = baseY + offsetY;
