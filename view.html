@@ -60,6 +60,7 @@ model-viewer{
   animation-delay:2s;
 }
 @keyframes fadeout{to{opacity:0;}}
+@keyframes popIn{0%{transform:scale(0.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
 
 /* ボトムメニュー */
 .bottom{
@@ -195,15 +196,40 @@ function loadWork(work, thumbEl) {
   if(thumbEl) thumbEl.classList.add('active');
 
   document.getElementById('workName').textContent = work.name || 'なまえなし';
-  document.getElementById('loadingMsg').style.display = 'flex';
+  document.getElementById('loadingMsg').style.display = 'none';
   mv.style.display = 'none';
 
-  mv.setAttribute('src', work.url);
+  // 既存のPNG表示を削除
+  const existingImg = document.getElementById('pngViewer');
+  if(existingImg) existingImg.remove();
 
-  mv.addEventListener('load', () => {
-    document.getElementById('loadingMsg').style.display = 'none';
-    mv.style.display = 'block';
-  }, {once:true});
+  if(work.type === 'png') {
+    // PNGはimgタグで表示
+    const img = document.createElement('img');
+    img.id = 'pngViewer';
+    img.src = work.url;
+    img.style.cssText = `
+      max-width:90%;max-height:80%;
+      object-fit:contain;border-radius:16px;
+      border:2px solid rgba(255,255,255,0.15);
+      animation:popIn 0.4s ease;
+    `;
+    document.getElementById('viewerWrap').appendChild(img);
+  } else if(work.type === 'glb') {
+    // GLBはmodel-viewerで表示
+    document.getElementById('loadingMsg').style.display = 'flex';
+    mv.setAttribute('src', work.url);
+    mv.addEventListener('load', () => {
+      document.getElementById('loadingMsg').style.display = 'none';
+      mv.style.display = 'block';
+    }, {once:true});
+    // 5秒でタイムアウト
+    setTimeout(() => {
+      if(document.getElementById('loadingMsg').style.display !== 'none') {
+        document.getElementById('loadingMsg').innerHTML = '<div style="font-size:12px;color:var(--muted);">読み込みに時間がかかっています…</div>';
+      }
+    }, 5000);
+  }
 }
 
 function toggleAutoRotate() {
