@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>さくひんを見る</title>
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
@@ -118,17 +119,7 @@ model-viewer{
     <div>さくひんを読み込み中…</div>
   </div>
 
-  <model-viewer
-    id="mv"
-    camera-controls
-    auto-rotate
-    ar
-    ar-modes="webxr scene-viewer quick-look"
-    shadow-intensity="0"
-    exposure="1"
-    crossorigin="anonymous"
-    style="display:none;"
-  ></model-viewer>
+  <canvas id="mv" style="display:none;width:100%;height:100%;"></canvas>
 
   <div class="work-name" id="workName"></div>
   <div class="hint">👆 ドラッグして回してみよう！</div>
@@ -217,38 +208,93 @@ function loadWork(work, thumbEl) {
     `;
     document.getElementById('viewerWrap').appendChild(img);
   } else if(work.type === 'glb') {
-    // GLBはmodel-viewerで表示
     document.getElementById('loadingMsg').style.display = 'flex';
-    mv.setAttribute('src', work.url);
-    mv.addEventListener('load', () => {
-      document.getElementById('loadingMsg').style.display = 'none';
-      mv.style.display = 'block';
-    }, {once:true});
-    // 5秒でタイムアウト
-    setTimeout(() => {
-      if(document.getElementById('loadingMsg').style.display !== 'none') {
-        document.getElementById('loadingMsg').innerHTML = '<div style="font-size:12px;color:var(--muted);">読み込みに時間がかかっています…</div>';
-      }
-    }, 5000);
+    initThreeJS(work.url);
   }
 }
 
 function toggleAutoRotate() {
   autoRotating = !autoRotating;
-  mv.setAttribute('auto-rotate', autoRotating ? '' : null);
-  if(!autoRotating) mv.removeAttribute('auto-rotate');
   document.getElementById('rotateIcon').textContent = autoRotating ? '⏸' : '▶';
   document.getElementById('rotateLabel').textContent = autoRotating ? '回転停止' : '回転開始';
 }
 
 function launchAR() {
-  if(!currentWork) return;
-  if(currentWork.type === 'glb') {
-    // model-viewerのAR機能を起動
-    mv.activateAR();
-  } else {
-    alert('ARで見るには3D（GLB）の作品を選んでね！');
+  alert('AR機能は近日公開予定！');
+}
+
+// Three.js GLB表示
+let threeRenderer, threeScene, threeCamera, threeModel, threeAnimId;
+let isDragging = false, lastX = 0, lastY = 0;
+let rotX = 0, rotY = 0;
+
+function initThreeJS(url) {
+  const canvas = document.getElementById('mv');
+  const wrap = document.getElementById('viewerWrap');
+  canvas.width = wrap.offsetWidth;
+  canvas.height = wrap.offsetHeight;
+
+  if(threeRenderer) { threeRenderer.dispose(); }
+  if(threeAnimId) cancelAnimationFrame(threeAnimId);
+
+  threeRenderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  threeRenderer.setSize(canvas.width, canvas.height);
+  threeRenderer.setClearColor(0x000000, 0);
+
+  threeScene = new THREE.Scene();
+  threeCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 0.1, 100);
+  threeCamera.position.set(0, 0, 3);
+
+  threeScene.add(new THREE.AmbientLight(0xffffff, 2));
+  const dir = new THREE.DirectionalLight(0xffffff, 1);
+  dir.position.set(1,2,1);
+  threeScene.add(dir);
+
+  const loader = new THREE.GLTFLoader();
+  loader.load(url, (gltf) => {
+    if(threeModel) threeScene.remove(threeModel);
+    threeModel = gltf.scene;
+    const box = new THREE.Box3().setFromObject(threeModel);
+    const size = box.getSize(new THREE.Vector3());
+    threeModel.scale.setScalar(1.5 / Math.max(size.x, size.y, size.z));
+    const center = box.getCenter(new THREE.Vector3());
+    threeModel.position.sub(center);
+    threeScene.add(threeModel);
+    document.getElementById('loadingMsg').style.display = 'none';
+    canvas.style.display = 'block';
+  }, undefined, (err) => {
+    document.getElementById('loadingMsg').innerHTML = '<div style="color:rgba(255,100,100,0.8);font-size:12px;">読み込みに失敗しました</div>';
+  });
+
+  // ドラッグ回転
+  canvas.addEventListener('mousedown', e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
+  canvas.addEventListener('mousemove', e => {
+    if(!isDragging) return;
+    rotY += (e.clientX-lastX)*0.01;
+    rotX += (e.clientY-lastY)*0.01;
+    lastX=e.clientX; lastY=e.clientY;
+  });
+  canvas.addEventListener('mouseup', ()=>isDragging=false);
+  canvas.addEventListener('touchstart', e=>{ isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; });
+  canvas.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    if(!isDragging) return;
+    rotY += (e.touches[0].clientX-lastX)*0.01;
+    rotX += (e.touches[0].clientY-lastY)*0.01;
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  },{passive:false});
+  canvas.addEventListener('touchend', ()=>isDragging=false);
+
+  function render() {
+    threeAnimId = requestAnimationFrame(render);
+    if(threeModel) {
+      if(autoRotating && !isDragging) rotY += 0.008;
+      threeModel.rotation.y = rotY;
+      threeModel.rotation.x = rotX;
+    }
+    threeRenderer.render(threeScene, threeCamera);
   }
+  render();
 }
 </script>
 </body>
