@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>さくひんを見る</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#06001a;--panel:#0f0028;--gold:#ffcc44;--text:#fff;--muted:rgba(255,255,255,0.5);--border:rgba(255,255,255,0.12);}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
+
+.header{padding:14px 16px 10px;flex-shrink:0;display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,rgba(6,0,26,0.98) 0%,transparent 100%);}
+.back{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--text);text-decoration:none;}
+.header-title{font-size:15px;font-weight:700;color:var(--gold);}
+.header-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* メインビューア */
+.viewer-wrap{
+  flex:1;position:relative;display:flex;
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);
+}
+model-viewer{
+  width:100%;height:100%;
+  --poster-color:transparent;
+  background:transparent;
+}
+.loading-msg{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;
+  color:var(--muted);font-size:13px;
+}
+.loading-spinner{
+  width:40px;height:40px;border-radius:50%;
+  border:3px solid rgba(255,200,60,0.2);
+  border-top-color:#ffcc44;
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* 作品名 */
+.work-name{
+  position:absolute;top:20px;left:0;right:0;
+  text-align:center;
+  font-size:18px;font-weight:700;color:var(--gold);
+  text-shadow:0 0 20px rgba(255,200,60,0.5);
+  pointer-events:none;
+}
+
+/* ヒント */
+.hint{
+  position:absolute;bottom:100px;left:0;right:0;
+  text-align:center;font-size:11px;color:var(--muted);
+  pointer-events:none;
+  animation:fadeout 3s ease forwards;
+  animation-delay:2s;
+}
+@keyframes fadeout{to{opacity:0;}}
+
+/* ボトムメニュー */
+.bottom{
+  flex-shrink:0;padding:12px 16px 28px;
+  background:linear-gradient(0deg,rgba(6,0,26,0.98) 0%,transparent 100%);
+  display:flex;gap:8px;
+}
+.btn{
+  flex:1;padding:12px 8px;border-radius:14px;
+  border:1px solid var(--border);background:rgba(255,255,255,0.05);
+  color:var(--text);font-size:11px;text-align:center;cursor:pointer;
+  transition:all 0.15s;
+}
+.btn:active{background:rgba(255,200,60,0.15);}
+.btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+.btn.ar-btn{
+  background:rgba(255,100,0,0.2);
+  border-color:rgba(255,150,0,0.4);
+  color:#ffcc44;
+}
+
+/* 作品リスト */
+.works-list{
+  position:absolute;bottom:90px;left:0;right:0;
+  display:flex;gap:8px;padding:0 16px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.works-list::-webkit-scrollbar{display:none;}
+.work-thumb{
+  width:56px;height:56px;flex-shrink:0;
+  border-radius:10px;border:2px solid var(--border);
+  background:rgba(255,255,255,0.06);
+  overflow:hidden;cursor:pointer;
+  transition:all 0.15s;
+}
+.work-thumb.active{border-color:var(--gold);box-shadow:0 0 12px rgba(255,200,60,0.4);}
+.work-thumb img{width:100%;height:100%;object-fit:cover;}
+.work-thumb .glb-icon{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back" href="index.html">←</a>
+  <div>
+    <div class="header-title">さくひんを見る</div>
+    <div class="header-sub">ドラッグでぐるぐる回せるよ！</div>
+  </div>
+</div>
+
+<div class="viewer-wrap" id="viewerWrap">
+  <div class="loading-msg" id="loadingMsg">
+    <div class="loading-spinner"></div>
+    <div>さくひんを読み込み中…</div>
+  </div>
+
+  <model-viewer
+    id="mv"
+    camera-controls
+    auto-rotate
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    shadow-intensity="0"
+    exposure="1"
+    style="display:none;"
+  ></model-viewer>
+
+  <div class="work-name" id="workName"></div>
+  <div class="hint">👆 ドラッグして回してみよう！</div>
+</div>
+
+<!-- 作品サムネイル一覧 -->
+<div class="works-list" id="worksList"></div>
+
+<div class="bottom">
+  <div class="btn" onclick="window.location.href='index.html'"><span class="bi">←</span>もどる</div>
+  <div class="btn" onclick="toggleAutoRotate()"><span class="bi" id="rotateIcon">⏸</span><span id="rotateLabel">回転停止</span></div>
+  <div class="btn ar-btn" onclick="launchAR()"><span class="bi">🌍</span>ARで見る</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDGlQeMC6iJzWAB16teP_5oC2FeBcgZxmA",
+  authDomain: "hanabi-ar-1754a.firebaseapp.com",
+  databaseURL: "https://hanabi-ar-1754a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hanabi-ar-1754a",
+  storageBucket: "hanabi-ar-1754a.firebasestorage.app",
+  messagingSenderId: "861479696200",
+  appId: "1:861479696200:web:393add8997cf25affd657d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const mv = document.getElementById('mv');
+const worksList = document.getElementById('worksList');
+let currentWork = null;
+let autoRotating = true;
+let works = [];
+
+// Firebaseから作品を読み込む
+db.ref('works').on('value', (snap) => {
+  const data = snap.val();
+  if(!data) {
+    document.getElementById('loadingMsg').innerHTML = '<div style="font-size:13px;color:var(--muted);">まだ作品がありません</div>';
+    return;
+  }
+
+  works = Object.entries(data).map(([key, val]) => ({id:key, ...val}));
+  worksList.innerHTML = '';
+
+  works.forEach((work, i) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'work-thumb' + (i===0?' active':'');
+    thumb.onclick = () => loadWork(work, thumb);
+
+    if(work.type === 'png') {
+      thumb.innerHTML = `<img src="${work.url}" crossorigin="anonymous">`;
+    } else {
+      thumb.innerHTML = `<div class="glb-icon">🧊</div>`;
+    }
+    worksList.appendChild(thumb);
+
+    if(i === 0) loadWork(work, thumb);
+  });
+});
+
+function loadWork(work, thumbEl) {
+  currentWork = work;
+
+  // サムネイルのactive切り替え
+  document.querySelectorAll('.work-thumb').forEach(t => t.classList.remove('active'));
+  if(thumbEl) thumbEl.classList.add('active');
+
+  document.getElementById('workName').textContent = work.name || 'なまえなし';
+  document.getElementById('loadingMsg').style.display = 'flex';
+  mv.style.display = 'none';
+
+  mv.setAttribute('src', work.url);
+
+  mv.addEventListener('load', () => {
+    document.getElementById('loadingMsg').style.display = 'none';
+    mv.style.display = 'block';
+  }, {once:true});
+}
+
+function toggleAutoRotate() {
+  autoRotating = !autoRotating;
+  mv.setAttribute('auto-rotate', autoRotating ? '' : null);
+  if(!autoRotating) mv.removeAttribute('auto-rotate');
+  document.getElementById('rotateIcon').textContent = autoRotating ? '⏸' : '▶';
+  document.getElementById('rotateLabel').textContent = autoRotating ? '回転停止' : '回転開始';
+}
+
+function launchAR() {
+  if(!currentWork) return;
+  if(currentWork.type === 'glb') {
+    // model-viewerのAR機能を起動
+    mv.activateAR();
+  } else {
+    alert('ARで見るには3D（GLB）の作品を選んでね！');
+  }
+}
+</script>
+</body>
+</html>
