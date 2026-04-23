@@ -6,21 +6,131 @@
 <title>はなびARあそび</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:#06001a;color:#fff;height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
-body{background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);}
-.emoji{font-size:64px;animation:float 3s ease-in-out infinite;margin-bottom:16px;}
-@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
-.title{font-size:28px;font-weight:900;text-align:center;line-height:1.3;margin-bottom:12px;background:linear-gradient(135deg,#ffcc44,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:32px;}
-.btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff6b00,#ffcc00);color:#000;font-size:16px;font-weight:900;cursor:pointer;margin-bottom:12px;}
-.btn-sub{width:100%;max-width:320px;padding:14px;border:1px solid rgba(255,255,255,0.2);border-radius:16px;background:rgba(255,255,255,0.05);color:#fff;font-size:14px;cursor:pointer;}
+body{
+  font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+  background:radial-gradient(ellipse at 50% 40%,#1a0035 0%,#06001a 70%);
+  color:#fff;height:100dvh;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+}
+
+/* 背景の花火エモジ */
+.bg-fw{position:fixed;inset:0;pointer-events:none;overflow:hidden;}
+.fw{position:absolute;animation:fw-float var(--d,3s) ease-in-out infinite var(--delay,0s);opacity:0.6;}
+@keyframes fw-float{
+  0%,100%{transform:translateY(0) scale(1) rotate(0deg);}
+  50%{transform:translateY(-18px) scale(1.2) rotate(10deg);}
+}
+
+/* キラキラ */
+.sparks{position:fixed;inset:0;pointer-events:none;}
+.spark{
+  position:absolute;border-radius:50%;
+  animation:spark-anim var(--d,2s) ease-in-out infinite var(--delay,0s);
+  opacity:0;
+}
+@keyframes spark-anim{
+  0%,100%{opacity:0;transform:scale(0);}
+  50%{opacity:1;transform:scale(1);}
+}
+
+/* メイン */
+.content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:360px;}
+
+.main-emoji{
+  font-size:88px;
+  animation:main-float 2.8s ease-in-out infinite;
+  margin-bottom:4px;
+  filter:drop-shadow(0 0 24px rgba(255,180,0,0.8));
+}
+@keyframes main-float{
+  0%,100%{transform:translateY(0) scale(1);}
+  50%{transform:translateY(-14px) scale(1.08);}
+}
+
+.title{
+  font-size:34px;font-weight:900;text-align:center;line-height:1.25;
+  margin-bottom:6px;
+  background:linear-gradient(135deg,#ffee44,#ff8800,#ff44bb);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 12px rgba(255,140,0,0.5));
+}
+
+.subtitle{
+  font-size:15px;font-weight:700;color:#ffbb44;
+  margin-bottom:4px;text-align:center;
+  animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:0.7;}50%{opacity:1;}}
+
+.desc{font-size:13px;color:rgba(255,255,255,0.5);text-align:center;line-height:2;margin-bottom:28px;}
+
+/* ボタン */
+.btn{
+  width:100%;padding:18px 24px;border:none;border-radius:20px;
+  background:linear-gradient(135deg,#ff6b00,#ffcc00);
+  color:#000;font-size:17px;font-weight:900;cursor:pointer;
+  margin-bottom:12px;
+  box-shadow:0 4px 24px rgba(255,150,0,0.5);
+  position:relative;overflow:hidden;
+  animation:btn-pulse 2.8s ease-in-out infinite;
+}
+.btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.35) 50%,transparent 100%);
+  transform:translateX(-100%);
+  animation:shine 2.5s ease-in-out infinite 0.5s;
+}
+@keyframes shine{0%,100%{transform:translateX(-100%);}60%{transform:translateX(100%);}}
+@keyframes btn-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.025);}}
+
+.btn-sub{
+  width:100%;padding:14px 24px;border:1px solid rgba(255,255,255,0.25);border-radius:16px;
+  background:rgba(255,255,255,0.07);color:#fff;font-size:14px;cursor:pointer;
+  transition:background 0.2s;
+}
+.btn-sub:active{background:rgba(255,255,255,0.15);}
 </style>
 </head>
 <body>
-  <div class="emoji">🎆</div>
+
+<div class="bg-fw">
+  <span class="fw" style="--d:3.2s;--delay:0s;  left:6%;  top:8%;  font-size:36px;">🎆</span>
+  <span class="fw" style="--d:4.1s;--delay:0.6s;left:82%; top:6%;  font-size:28px;">🎇</span>
+  <span class="fw" style="--d:3.6s;--delay:1.1s;left:12%; top:72%; font-size:30px;">✨</span>
+  <span class="fw" style="--d:2.9s;--delay:1.7s;left:80%; top:68%; font-size:26px;">🌟</span>
+  <span class="fw" style="--d:4.3s;--delay:0.9s;left:48%; top:82%; font-size:32px;">💫</span>
+  <span class="fw" style="--d:3.0s;--delay:2.1s;left:62%; top:12%; font-size:24px;">⭐</span>
+  <span class="fw" style="--d:3.8s;--delay:0.3s;left:35%; top:5%;  font-size:22px;">🌸</span>
+  <span class="fw" style="--d:2.7s;--delay:1.4s;left:92%; top:35%; font-size:26px;">💥</span>
+</div>
+
+<div class="sparks" id="sparks"></div>
+
+<div class="content">
+  <div class="main-emoji">🎆</div>
   <div class="title">はなびAR<br>あそび</div>
+  <div class="subtitle">🌟 みんなの花火が空に咲く！ 🌟</div>
   <div class="desc">QRコードを読んで<br>みんなの作品が浮かぶ空間へ！</div>
   <button class="btn" onclick="window.location.href='view.html'">🌍 AR空間に入る</button>
   <button class="btn-sub" onclick="window.location.href='upload.html'">🎨 作品をアップする</button>
+</div>
+
+<script>
+const sparks = document.getElementById('sparks');
+const sparkColors = ['#ffee44','#ff8800','#ff44bb','#44aaff','#88ff44','#cc44ff'];
+for(let i = 0; i < 24; i++) {
+  const el = document.createElement('div');
+  el.className = 'spark';
+  const size = 2 + Math.random() * 5;
+  el.style.cssText = `
+    left:${Math.random()*100}%;top:${Math.random()*100}%;
+    --d:${1.2+Math.random()*2.5}s;--delay:${Math.random()*3}s;
+    width:${size}px;height:${size}px;
+    background:${sparkColors[Math.floor(Math.random()*sparkColors.length)]};
+    box-shadow:0 0 ${size*2}px currentColor;
+  `;
+  sparks.appendChild(el);
+}
+</script>
 </body>
 </html>

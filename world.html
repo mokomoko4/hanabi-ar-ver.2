@@ -88,7 +88,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
     </div>
     <div class="count" id="countBadge">0 作品</div>
   </div>
-  <div class="hint">📱 スマホを傾けて空間を見渡してみよう！</div>
+  <div class="hint">📱 傾けて見渡そう！タップで花火を打ち上げ！🎆</div>
   <div class="bottom">
     <div class="btn" onclick="window.location.href='index.html'"><span class="bi">←</span>もどる</div>
     <div class="btn" onclick="resetView()"><span class="bi">🔄</span>向き直す</div>
@@ -155,35 +155,129 @@ function createStars() {
 }
 createStars();
 
-// 花火パーティクル
-function createFireworks() {
-  const colors = [0xff4444, 0xff8800, 0xffdd00, 0x44ff44, 0x4488ff, 0xcc44ff, 0xff88bb];
-  for(let f=0;f<8;f++){
+// ── サウンド（Web Audio API） ──
+let audioCtx = null;
+function getAudio() {
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playWhistle() {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(280, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime+0.55);
+    g.gain.setValueAtTime(0.12, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.55);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.55);
+  } catch(e){}
+}
+function playBoom() {
+  try {
+    const ctx = getAudio();
+    const sr = ctx.sampleRate;
+    const n = Math.floor(sr*0.55);
+    const buf = ctx.createBuffer(1, n, sr);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i] = (Math.random()*2-1)*Math.exp(-i/(n*0.13));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.4, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.55);
+    src.connect(g); g.connect(ctx.destination);
+    src.start();
+  } catch(e){}
+}
+
+// ── アニメーション花火クラス ──
+const FW_COLORS = [0xff4444,0xff8800,0xffee00,0x44ff44,0x4488ff,0xcc44ff,0xff88bb,0x44ffdd,0xff6644,0xaaffaa];
+
+class AnimatedFirework {
+  constructor(scene) {
+    this.scene = scene;
+    this.done = false;
+    this.phase = 'launch';
+    this.elapsed = 0;
+    this.launchDur = 0.5 + Math.random()*0.35;
+
     const theta = Math.random()*Math.PI*2;
-    const phi = Math.PI*0.2 + Math.random()*Math.PI*0.4;
-    const r = 15 + Math.random()*10;
-    const cx = r*Math.sin(phi)*Math.cos(theta);
-    const cy = r*Math.sin(phi)*Math.sin(theta);
-    const cz = r*Math.cos(phi);
-    const color = colors[Math.floor(Math.random()*colors.length)];
-    const geo = new THREE.BufferGeometry();
-    const positions = [];
-    for(let i=0;i<60;i++){
-      const t = Math.random()*Math.PI*2;
-      const p = Math.acos(2*Math.random()-1);
-      const pr = 1.5 + Math.random()*2;
-      positions.push(
-        cx+pr*Math.sin(p)*Math.cos(t),
-        cy+pr*Math.sin(p)*Math.sin(t),
-        cz+pr*Math.cos(p)
-      );
+    const r = 13 + Math.random()*9;
+    this.bx = r * Math.cos(theta);
+    this.by = 4 + Math.random()*9;
+    this.bz = r * Math.sin(theta);
+
+    // 導火線（打ち上げ中の軌跡）
+    const tg = new THREE.BufferGeometry();
+    tg.setAttribute('position', new THREE.Float32BufferAttribute([0,-3,0], 3));
+    this.tMat = new THREE.PointsMaterial({color:0xffffcc, size:0.35, transparent:true, opacity:1});
+    this.tObj = new THREE.Points(tg, this.tMat);
+    scene.add(this.tObj);
+
+    // 爆発パーティクル
+    const N = 90;
+    const pos = new Float32Array(N*3);
+    this.vel = [];
+    for(let i=0;i<N;i++){
+      pos[i*3]=this.bx; pos[i*3+1]=this.by; pos[i*3+2]=this.bz;
+      const sp = 0.9+Math.random()*2.2;
+      const t2 = Math.random()*Math.PI*2;
+      const p2 = Math.acos(2*Math.random()-1);
+      this.vel.push(sp*Math.sin(p2)*Math.cos(t2), sp*Math.sin(p2)*Math.sin(t2), sp*Math.cos(p2));
     }
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-    const mat = new THREE.PointsMaterial({color, size:0.15, transparent:true, opacity:0.9});
-    scene.add(new THREE.Points(geo, mat));
+    this.bGeo = new THREE.BufferGeometry();
+    this.bGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    this.bMat = new THREE.PointsMaterial({
+      color: FW_COLORS[Math.floor(Math.random()*FW_COLORS.length)],
+      size:0.22, transparent:true, opacity:0
+    });
+    this.bObj = new THREE.Points(this.bGeo, this.bMat);
+    scene.add(this.bObj);
+    this.basePos = pos.slice();
+    this.N = N;
+
+    playWhistle();
+  }
+
+  update(dt) {
+    this.elapsed += dt;
+    if(this.phase === 'launch') {
+      const p = Math.min(this.elapsed/this.launchDur, 1);
+      const e = p<0.5 ? 2*p*p : -1+(4-2*p)*p; // ease-in-out
+      const pa = this.tObj.geometry.attributes.position.array;
+      pa[0]=this.bx*e; pa[1]=-3+(this.by+3)*e; pa[2]=this.bz*e;
+      this.tObj.geometry.attributes.position.needsUpdate = true;
+      this.tMat.opacity = 1 - p*0.3;
+      if(p >= 1) {
+        this.phase = 'burst'; this.elapsed = 0;
+        this.tMat.opacity = 0; this.bMat.opacity = 1;
+        playBoom();
+      }
+    } else {
+      const fade = Math.max(0, 1-this.elapsed/2.2);
+      this.bMat.opacity = fade;
+      const pos = this.bGeo.attributes.position.array;
+      for(let i=0;i<this.N;i++){
+        pos[i*3]   = this.basePos[i*3]   + this.vel[i*3]  *this.elapsed;
+        pos[i*3+1] = this.basePos[i*3+1] + this.vel[i*3+1]*this.elapsed - 0.28*this.elapsed*this.elapsed;
+        pos[i*3+2] = this.basePos[i*3+2] + this.vel[i*3+2]*this.elapsed;
+      }
+      this.bGeo.attributes.position.needsUpdate = true;
+      if(fade <= 0) { this.scene.remove(this.tObj); this.scene.remove(this.bObj); this.done=true; }
+    }
   }
 }
-createFireworks();
+
+const activeFireworks = [];
+let nextFwTime = 1000; // 最初の花火まで1秒待つ
+
+function launchFirework() {
+  activeFireworks.push(new AnimatedFirework(scene));
+}
 
 // ── 作品を球面に配置 ──
 let loadedCount = 0;
@@ -327,24 +421,34 @@ function resetView() {
 }
 
 // マウス操作（PC用）
-let mouseDown = false;
+let mouseDown = false, mouseMoved = false;
 let lastX = 0, lastY = 0;
 let yaw = 0, pitch = 0;
 
-canvas.addEventListener('mousedown', e => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
+canvas.addEventListener('mousedown', e => { mouseDown=true; mouseMoved=false; lastX=e.clientX; lastY=e.clientY; });
 canvas.addEventListener('mousemove', e => {
   if(!mouseDown) return;
+  mouseMoved = true;
   yaw += (e.clientX - lastX) * 0.005;
   pitch += (e.clientY - lastY) * 0.003;
   pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, pitch));
   lastX = e.clientX; lastY = e.clientY;
 });
 canvas.addEventListener('mouseup', () => mouseDown = false);
+canvas.addEventListener('click', () => {
+  try { getAudio().resume(); } catch(e){}
+  if(!mouseMoved) launchFirework();
+});
 
 // タッチ操作
-let lastTouchX = 0, lastTouchY = 0;
-canvas.addEventListener('touchstart', e => { lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY; });
+let lastTouchX = 0, lastTouchY = 0, touchMoved = false;
+canvas.addEventListener('touchstart', e => {
+  touchMoved = false;
+  lastTouchX = e.touches[0].clientX;
+  lastTouchY = e.touches[0].clientY;
+});
 canvas.addEventListener('touchmove', e => {
+  touchMoved = true;
   e.preventDefault();
   yaw += (e.touches[0].clientX - lastTouchX) * 0.005;
   pitch += (e.touches[0].clientY - lastTouchY) * 0.003;
@@ -352,16 +456,34 @@ canvas.addEventListener('touchmove', e => {
   lastTouchX = e.touches[0].clientX;
   lastTouchY = e.touches[0].clientY;
 }, {passive:false});
+canvas.addEventListener('touchend', () => {
+  if(!touchMoved) {
+    try { getAudio().resume(); } catch(e){}
+    launchFirework();
+  }
+});
 
 // ── レンダリングループ ──
 let t = 0;
-function animate() {
+let lastFrameTime = performance.now();
+
+function animate(now) {
   requestAnimationFrame(animate);
-  t += 0.01;
+  const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
+  lastFrameTime = now;
+  t += dt;
+
+  // 定期的に花火を打ち上げ（2〜4秒ごと）
+  if(now > nextFwTime && activeFireworks.length < 5) {
+    launchFirework();
+    nextFwTime = now + 2000 + Math.random()*2000;
+  }
+  for(let i = activeFireworks.length-1; i>=0; i--) {
+    activeFireworks[i].update(dt);
+    if(activeFireworks[i].done) activeFireworks.splice(i, 1);
+  }
 
   if(!useGyro) {
-    // マウス/タッチ時のみ回転制御
-    // マウス/タッチでカメラ向き制御
     camera.rotation.order = 'YXZ';
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
@@ -376,7 +498,7 @@ function animate() {
 
   renderer.render(scene, camera);
 }
-animate();
+animate(performance.now());
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;

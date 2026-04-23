@@ -33,6 +33,7 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
 
 <video id="bgVideo" autoplay playsinline muted></video>
 <canvas id="arCanvas"></canvas>
+<canvas id="fxCanvas" style="position:fixed;inset:0;width:100%;height:100%;z-index:7;pointer-events:none;"></canvas>
 
 <div class="ar-ui">
   <div class="ar-header">
@@ -52,6 +53,92 @@ body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','No
 </div>
 
 <script>
+// ── 2D花火エフェクト ──
+const fxCanvas = document.getElementById('fxCanvas');
+fxCanvas.width = window.innerWidth;
+fxCanvas.height = window.innerHeight;
+const fx2d = fxCanvas.getContext('2d');
+
+let audioCtx = null;
+function getAudio() {
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playBoom(vol) {
+  try {
+    const ctx = getAudio();
+    const sr = ctx.sampleRate;
+    const n = Math.floor(sr*0.5);
+    const buf = ctx.createBuffer(1,n,sr);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(n*0.12));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol||0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.5);
+    src.connect(g); g.connect(ctx.destination);
+    src.start();
+  } catch(e){}
+}
+function playWhistle() {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(300, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime+0.45);
+    g.gain.setValueAtTime(0.1, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.45);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.45);
+  } catch(e){}
+}
+
+const FW_COLORS_2D = ['#ff4444','#ff8800','#ffee00','#44ff88','#4488ff','#cc44ff','#ff88cc','#44ffdd'];
+const particles2D = [];
+
+function spawnBurst(x, y, big) {
+  const color = FW_COLORS_2D[Math.floor(Math.random()*FW_COLORS_2D.length)];
+  const count = big ? 70 : 40;
+  const maxSpeed = big ? 8 : 5;
+  for(let i=0;i<count;i++){
+    const angle = Math.random()*Math.PI*2;
+    const speed = 1.5 + Math.random()*maxSpeed;
+    particles2D.push({
+      x, y,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      color,
+      life: 1.0,
+      decay: 0.012 + Math.random()*0.018,
+      size: 2 + Math.random()*(big?4:2.5)
+    });
+  }
+  playWhistle();
+  setTimeout(() => playBoom(big ? 0.4 : 0.25), 420);
+}
+
+function renderFX() {
+  fx2d.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  for(let i=particles2D.length-1; i>=0; i--){
+    const p = particles2D[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.13; // 重力
+    p.vx *= 0.97; p.vy *= 0.97; // 空気抵抗
+    p.life -= p.decay;
+    if(p.life<=0){ particles2D.splice(i,1); continue; }
+    fx2d.globalAlpha = p.life;
+    fx2d.fillStyle = p.color;
+    fx2d.beginPath();
+    fx2d.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    fx2d.fill();
+  }
+  fx2d.globalAlpha = 1;
+}
+
 // Firebase設定
 const firebaseConfig = {
   apiKey: "AIzaSyDGlQeMC6iJzWAB16teP_5oC2FeBcgZxmA",
@@ -258,6 +345,11 @@ function addWork(work) {
     works.push({mesh, baseY: y, phase: Math.random()*Math.PI*2});
   }
   document.getElementById('arCount').textContent = addedIds.size + ' 作品';
+
+  // 新しい作品が現れたとき花火でお祝い
+  const cx = window.innerWidth/2 + x*120;
+  const cy = window.innerHeight/2 - y*120;
+  setTimeout(() => spawnBurst(cx, cy, true), 200);
 }
 
 // Firebaseから読み込む
@@ -268,7 +360,7 @@ db.ref('works').on('child_added', (snap) => {
 });
 
 // 最初から全部表示
-document.getElementById('arStatus').textContent = '✨ スマホを動かして探してみよう！';
+document.getElementById('arStatus').textContent = '✨ タップして花火を打ち上げよう！';
 document.getElementById('arStatus').classList.add('found');
 
 // ── ジャイロ設定 ──
@@ -310,16 +402,15 @@ if(typeof DeviceOrientationEvent !== 'undefined' &&
   startGyro();
 }
 
-// タップでリセット
+// タップで花火打ち上げ！
 document.getElementById('arCanvas').style.pointerEvents = 'all';
-document.getElementById('arCanvas').addEventListener('click', () => {
-  baseAlpha = gyroAlpha + (baseAlpha || 0);
-  baseAlpha = ((baseAlpha) + 360) % 360;
-  baseAlpha = null; // リセット
-  document.getElementById('arStatus').textContent = '🔄 向きをリセットしました';
+document.getElementById('arCanvas').addEventListener('click', (e) => {
+  try { getAudio().resume(); } catch(err){}
+  spawnBurst(e.clientX, e.clientY, false);
+  document.getElementById('arStatus').textContent = '🎆 花火！';
   setTimeout(() => {
-    document.getElementById('arStatus').textContent = '✨ スマホを動かして探してみよう！';
-  }, 1500);
+    document.getElementById('arStatus').textContent = '✨ タップして花火を打ち上げよう！';
+  }, 1200);
 });
 
 // HTMLオーバーレイの作品を向きに合わせて動かす
@@ -358,6 +449,7 @@ function animate() {
     if(w.mesh) w.mesh.position.y = w.baseY + Math.sin(t + w.phase) * 0.06;
   });
   updateOverlayPositions();
+  renderFX();
   renderer.render(scene, camera);
 }
 animate();
@@ -368,6 +460,8 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  fxCanvas.width = window.innerWidth;
+  fxCanvas.height = window.innerHeight;
 });
 </script>
 </body>
