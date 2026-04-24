@@ -15,37 +15,55 @@
 body{overflow:hidden;background:#000;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;}
 #bgVideo{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;}
 #arCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;}
+#fxCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:8;pointer-events:all;}
 .ar-ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;pointer-events:none;}
 .ar-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;align-items:center;gap:10px;pointer-events:all;}
 .ar-back{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:#fff;text-decoration:none;}
 .ar-title{font-size:14px;font-weight:700;color:#ffcc44;}
 .ar-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
 .ar-count{margin-left:auto;padding:4px 12px;border-radius:20px;background:rgba(255,200,60,0.15);border:1px solid rgba(255,200,60,0.3);font-size:11px;color:#ffcc44;}
-.ar-ver{font-size:9px;color:rgba(255,255,255,0.25);margin-left:4px;}
-.ar-status{margin:auto auto 0;padding:8px 20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:12px;color:rgba(255,255,255,0.8);text-align:center;transition:all 0.4s;}
+.ar-status{margin:auto auto 0;padding:8px 20px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:12px;color:rgba(255,255,255,0.8);text-align:center;transition:all 0.4s;pointer-events:none;}
 .ar-status.found{border-color:rgba(100,255,150,0.5);color:#88ffaa;background:rgba(0,40,20,0.7);}
 .ar-bottom{padding:12px 16px 28px;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%);display:flex;gap:8px;pointer-events:all;}
 .ar-btn{flex:1;padding:11px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.5);color:#fff;font-size:11px;text-align:center;cursor:pointer;}
 .ar-btn .bi{font-size:20px;display:block;margin-bottom:3px;}
+.ar-work-overlay{
+  position:fixed;z-index:5;
+  transition:opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  transform-origin:center center;
+  opacity:0;
+  transform:scale(0);
+  pointer-events:none;
+}
+.ar-work-overlay.visible{
+  opacity:1;
+  transform:scale(1);
+  pointer-events:all;
+}
+.ar-name-tag{
+  position:fixed;z-index:5;pointer-events:none;
+  transition:opacity 0.5s ease;
+  opacity:0;
+}
+.ar-name-tag.visible{opacity:1;}
 </style>
 </head>
 <body>
 
 <video id="bgVideo" autoplay playsinline muted></video>
 <canvas id="arCanvas"></canvas>
-<canvas id="fxCanvas" style="position:fixed;inset:0;width:100%;height:100%;z-index:7;pointer-events:none;"></canvas>
+<canvas id="fxCanvas"></canvas>
 
 <div class="ar-ui">
   <div class="ar-header">
     <a class="ar-back" href="index.html">←</a>
     <div>
-      <div class="ar-title">花火の写真に向けてね</div>
-      <div class="ar-sub" id="arSub">看板の花火写真にカメラを向けよう</div>
+      <div class="ar-title">はなびAR</div>
+      <div class="ar-sub" id="arSub">カメラを起動中…</div>
     </div>
     <div class="ar-count" id="arCount">0 作品</div>
-    <div class="ar-ver">v4.4</div>
   </div>
-  <div class="ar-status" id="arStatus">📷 マーカーを探しています…</div>
+  <div class="ar-status found" id="arStatus">✨ タップして作品を出そう！</div>
   <div class="ar-bottom">
     <div class="ar-btn" onclick="window.location.href='index.html'"><span class="bi">←</span>もどる</div>
     <div class="ar-btn" onclick="alert('スマホのスクショで撮ってね！')"><span class="bi">📸</span>写真を撮る</div>
@@ -65,6 +83,8 @@ function getAudio() {
   if(audioCtx.state==='suspended') audioCtx.resume();
   return audioCtx;
 }
+
+// 音量を元の30%に設定
 function playBoom(vol) {
   try {
     const ctx = getAudio();
@@ -76,7 +96,7 @@ function playBoom(vol) {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(vol||0.3, ctx.currentTime);
+    g.gain.setValueAtTime(vol||0.09, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.5);
     src.connect(g); g.connect(ctx.destination);
     src.start();
@@ -91,7 +111,7 @@ function playWhistle() {
     osc.type='sine';
     osc.frequency.setValueAtTime(300, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime+0.45);
-    g.gain.setValueAtTime(0.1, ctx.currentTime);
+    g.gain.setValueAtTime(0.03, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.45);
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.45);
   } catch(e){}
@@ -118,7 +138,7 @@ function spawnBurst(x, y, big) {
     });
   }
   playWhistle();
-  setTimeout(() => playBoom(big ? 0.4 : 0.25), 420);
+  setTimeout(() => playBoom(big ? 0.12 : 0.075), 420);
 }
 
 function renderFX() {
@@ -126,8 +146,8 @@ function renderFX() {
   for(let i=particles2D.length-1; i>=0; i--){
     const p = particles2D[i];
     p.x += p.vx; p.y += p.vy;
-    p.vy += 0.13; // 重力
-    p.vx *= 0.97; p.vy *= 0.97; // 空気抵抗
+    p.vy += 0.13;
+    p.vx *= 0.97; p.vy *= 0.97;
     p.life -= p.decay;
     if(p.life<=0){ particles2D.splice(i,1); continue; }
     fx2d.globalAlpha = p.life;
@@ -139,7 +159,7 @@ function renderFX() {
   fx2d.globalAlpha = 1;
 }
 
-// Firebase設定
+// Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDGlQeMC6iJzWAB16teP_5oC2FeBcgZxmA",
   authDomain: "hanabi-ar-1754a.firebaseapp.com",
@@ -170,31 +190,30 @@ scene.add(new THREE.AmbientLight(0xffffff, 2));
 navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
   .then(stream => {
     document.getElementById('bgVideo').srcObject = stream;
-    document.getElementById('arSub').textContent = 'カメラ起動！花火写真に向けよう';
+    document.getElementById('arSub').textContent = 'タップして作品を出そう';
   })
   .catch(() => {
     document.getElementById('arSub').textContent = 'カメラの許可が必要です';
   });
 
-// 作品を配置
-const works = [];
+// 作品管理
+const meshWorks = [];
 const addedIds = new Set();
+let worksVisible = false;
+
+// HTMLオーバーレイ作品の情報リスト
+const workItems = [];
 
 function makeCanvasTexture(color, emoji, label) {
   const cv = document.createElement('canvas');
   cv.width = 256; cv.height = 256;
   const ctx = cv.getContext('2d');
   ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.roundRect(0,0,256,256,32);
-  ctx.fill();
+  ctx.beginPath(); ctx.roundRect(0,0,256,256,32); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.beginPath();
-  ctx.roundRect(12,12,232,232,24);
-  ctx.fill();
+  ctx.beginPath(); ctx.roundRect(12,12,232,232,24); ctx.fill();
   ctx.font = '80px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(emoji, 128, 100);
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 20px sans-serif';
@@ -206,179 +225,155 @@ function addWork(work) {
   if(addedIds.has(work.id)) return;
   addedIds.add(work.id);
 
-  const angle = addedIds.size * (Math.PI * 2 / 8);
+  const angle = (addedIds.size - 1) * (Math.PI * 2 / 8);
   const r = 1.2;
   const x = Math.cos(angle) * r;
   const y = Math.sin(angle) * r * 0.6;
 
-  let mesh;
+  const cx = window.innerWidth/2  + x * 120;
+  const cy = window.innerHeight/2 - y * 120;
+
   if(work.type === 'canvas') {
     const tex = makeCanvasTexture(work.color, work.emoji, work.label);
     const geo = new THREE.PlaneGeometry(0.7, 0.7);
     const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide});
-    mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, 0);
+    mesh.visible = false;
+    scene.add(mesh);
+    meshWorks.push({mesh, baseY: y, phase: Math.random()*Math.PI*2, cx, cy});
+
   } else if(work.type === 'png' && work.url) {
-    // HTMLのimgタグをARキャンバスに重ねて表示
-    const imgEl = document.createElement('img');
-    imgEl.src = work.url;
-    const cx = window.innerWidth/2  + x * 120;
-    const cy = window.innerHeight/2 - y * 120;
     const baseLeft = cx - 60;
     const baseTop  = cy - 60;
 
+    const imgEl = document.createElement('img');
+    imgEl.src = work.url;
     imgEl.className = 'ar-work-overlay';
-    imgEl.dataset.baseX  = baseLeft;
-    imgEl.dataset.baseY  = baseTop;
     imgEl.dataset.workId = work.id;
     imgEl.dataset.height = 120;
-    imgEl.style.cssText = `
-      position:fixed;
-      width:120px;height:120px;
-      object-fit:contain;
-      border-radius:12px;
-      border:2px solid rgba(255,255,255,0.3);
-      pointer-events:all;
-      z-index:5;
-      left:${baseLeft}px;
-      top:${baseTop}px;
-      cursor:pointer;
-    `;
+    imgEl.style.cssText = `width:120px;height:120px;object-fit:contain;border-radius:12px;border:2px solid rgba(255,255,255,0.3);cursor:pointer;left:${baseLeft}px;top:${baseTop}px;`;
 
-    // タップでズーム
-    imgEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isZoomed = imgEl.dataset.zoomed === '1';
-      if(isZoomed) {
-        imgEl.style.width  = '120px';
-        imgEl.style.height = '120px';
-        imgEl.style.zIndex = '5';
-        imgEl.dataset.zoomed = '0';
-      } else {
-        imgEl.style.width  = '260px';
-        imgEl.style.height = '260px';
-        imgEl.style.zIndex = '50';
-        imgEl.dataset.zoomed = '1';
-      }
-    });
-
-    // 名前タグ
     const nameEl = document.createElement('div');
+    nameEl.className = 'ar-name-tag';
     nameEl.id = 'name_' + work.id;
     nameEl.textContent = work.name || 'なまえなし';
-    nameEl.style.cssText = `
-      position:fixed;
-      left:${baseLeft}px;
-      top:${baseTop + 125}px;
-      width:120px;
-      text-align:center;
-      font-size:11px;color:#fff;
-      background:rgba(0,0,0,0.6);
-      border-radius:10px;padding:2px 6px;
-      pointer-events:none;z-index:5;
-    `;
+    nameEl.style.cssText = `left:${baseLeft}px;top:${baseTop+125}px;width:120px;text-align:center;font-size:11px;color:#fff;background:rgba(0,0,0,0.6);border-radius:10px;padding:2px 6px;`;
+
+    imgEl.addEventListener('click', e => {
+      e.stopPropagation();
+      const z = imgEl.dataset.zoomed === '1';
+      imgEl.style.width  = z ? '120px' : '260px';
+      imgEl.style.height = z ? '120px' : '260px';
+      imgEl.style.zIndex = z ? '5' : '50';
+      imgEl.dataset.zoomed = z ? '0' : '1';
+    });
 
     document.body.appendChild(imgEl);
     document.body.appendChild(nameEl);
 
-    // ふわふわアニメ
-    let ft = Math.random()*Math.PI*2;
+    let floatT = Math.random()*Math.PI*2;
+    const item = {imgEl, nameEl, baseCx:cx, baseCy:cy, baseLeft, baseTop, floatOffset:0};
     setInterval(() => {
-      ft += 0.03;
-      const offset = Math.sin(ft) * 8;
-      const curLeft = parseFloat(imgEl.style.left);
-      imgEl.dataset.baseY = (cy - 60 + offset);
+      floatT += 0.03;
+      item.floatOffset = Math.sin(floatT) * 8;
     }, 16);
+    workItems.push(item);
 
-    document.getElementById('arCount').textContent = addedIds.size + ' 作品';
-    return;
   } else if(work.type === 'glb' && work.url) {
-    // model-viewerでGLBをHTMLオーバーレイ表示
-    const cx2 = window.innerWidth/2 + x * 120;
-    const cy2 = window.innerHeight/2 - y * 120;
+    const baseLeft = cx - 75;
+    const baseTop  = cy - 75;
 
     const mv = document.createElement('model-viewer');
     mv.setAttribute('src', work.url);
     mv.setAttribute('auto-rotate', '');
     mv.setAttribute('camera-controls', '');
-    mv.style.cssText = `
-      position:fixed;
-      left:${cx2-75}px;
-      top:${cy2-75}px;
-      width:150px;height:150px;
-      pointer-events:none;
-      z-index:5;
-      background:transparent;
-      --poster-color:transparent;
-    `;
+    mv.className = 'ar-work-overlay';
+    mv.dataset.workId = work.id;
+    mv.dataset.height = 150;
+    mv.style.cssText = `width:150px;height:150px;background:transparent;--poster-color:transparent;left:${baseLeft}px;top:${baseTop}px;`;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'ar-name-tag';
+    nameEl.textContent = work.name || 'なまえなし';
+    nameEl.style.cssText = `left:${baseLeft}px;top:${baseTop+155}px;width:150px;text-align:center;font-size:11px;color:#fff;background:rgba(0,0,0,0.6);border-radius:10px;padding:2px 6px;`;
+
     document.body.appendChild(mv);
+    document.body.appendChild(nameEl);
 
-    // 名前タグ
-    const nameEl2 = document.createElement('div');
-    nameEl2.textContent = work.name || 'なまえなし';
-    nameEl2.style.cssText = `
-      position:fixed;
-      left:${cx2-75}px;top:${cy2+80}px;
-      width:150px;text-align:center;
-      font-size:11px;color:#fff;
-      background:rgba(0,0,0,0.6);border-radius:10px;
-      padding:2px 6px;pointer-events:none;z-index:5;
-    `;
-    document.body.appendChild(nameEl2);
-
-    // ふわふわアニメ
-    let ft2 = Math.random()*Math.PI*2;
-    const baseTop2 = cy2 - 75;
+    let floatT = Math.random()*Math.PI*2;
+    const item = {imgEl:mv, nameEl, baseCx:cx, baseCy:cy, baseLeft, baseTop, floatOffset:0};
     setInterval(() => {
-      ft2 += 0.03;
-      const offset = Math.sin(ft2) * 8;
-      mv.style.top = (baseTop2 + offset) + 'px';
-      nameEl2.style.top = (baseTop2 + 155 + offset) + 'px';
+      floatT += 0.03;
+      item.floatOffset = Math.sin(floatT) * 8;
     }, 16);
-
-    document.getElementById('arCount').textContent = addedIds.size + ' 作品';
-    return;
+    workItems.push(item);
   }
 
-  if(mesh) {
-    mesh.position.set(x, y, 0);
-    scene.add(mesh);
-    works.push({mesh, baseY: y, phase: Math.random()*Math.PI*2});
-  }
   document.getElementById('arCount').textContent = addedIds.size + ' 作品';
-
-  // 新しい作品が現れたとき花火でお祝い
-  const cx = window.innerWidth/2 + x*120;
-  const cy = window.innerHeight/2 - y*120;
-  setTimeout(() => spawnBurst(cx, cy, true), 200);
 }
 
-// Firebaseから読み込む
 db.ref('works').on('child_added', (snap) => {
   const work = snap.val();
   work.id = snap.key;
   addWork(work);
 });
 
-// 最初から全部表示
-document.getElementById('arStatus').textContent = '✨ タップして花火を打ち上げよう！';
-document.getElementById('arStatus').classList.add('found');
+// ── 作品の表示トグル ──
+function showWorks() {
+  worksVisible = true;
+  document.getElementById('arStatus').textContent = '🎆 作品が現れた！もう一回タップで消えるよ';
+  document.getElementById('arStatus').classList.add('found');
 
-// ── ジャイロ設定 ──
-let gyroAlpha = 0, gyroBeta = 0;
-let baseAlpha = null;
+  // HTMLオーバーレイを花火バーストで出す
+  workItems.forEach((item, i) => {
+    setTimeout(() => {
+      item.imgEl.classList.add('visible');
+      item.nameEl.classList.add('visible');
+      spawnBurst(item.baseCx, item.baseCy, true);
+    }, i * 200);
+  });
+
+  // Three.jsメッシュも表示
+  meshWorks.forEach((w, i) => {
+    setTimeout(() => {
+      w.mesh.visible = true;
+      spawnBurst(w.cx, w.cy, true);
+    }, i * 200);
+  });
+}
+
+function hideWorks() {
+  worksVisible = false;
+  document.getElementById('arStatus').textContent = '✨ タップして作品を出そう！';
+  document.getElementById('arStatus').classList.add('found');
+
+  workItems.forEach(item => {
+    item.imgEl.classList.remove('visible');
+    item.nameEl.classList.remove('visible');
+  });
+  meshWorks.forEach(w => { w.mesh.visible = false; });
+}
+
+// ── ジャイロ（連続追跡で空間固定） ──
+let gyroYaw = 0, gyroPitch = 0, prevAlpha = null;
 
 function startGyro() {
   window.addEventListener('deviceorientation', (e) => {
     if(e.alpha === null) return;
-    if(baseAlpha === null) baseAlpha = e.alpha;
-    gyroAlpha = ((e.alpha - baseAlpha) + 360) % 360;
-    gyroBeta  = e.beta || 0;
+    if(prevAlpha !== null) {
+      let da = e.alpha - prevAlpha;
+      if(da > 180) da -= 360;
+      if(da < -180) da += 360;
+      gyroYaw -= da;
+    }
+    prevAlpha = e.alpha;
+    gyroPitch = (e.beta || 0) - 90;
   }, true);
 }
 
 if(typeof DeviceOrientationEvent !== 'undefined' &&
    typeof DeviceOrientationEvent.requestPermission === 'function') {
-  // iPhone：許可ボタンを表示
   const gyroBtn = document.createElement('div');
   gyroBtn.textContent = '🌀 センサーを許可';
   gyroBtn.style.cssText = `
@@ -391,10 +386,7 @@ if(typeof DeviceOrientationEvent !== 'undefined' &&
   `;
   gyroBtn.onclick = () => {
     DeviceOrientationEvent.requestPermission().then(state => {
-      if(state === 'granted') {
-        startGyro();
-        gyroBtn.remove();
-      }
+      if(state === 'granted') { startGyro(); gyroBtn.remove(); }
     });
   };
   document.body.appendChild(gyroBtn);
@@ -402,51 +394,42 @@ if(typeof DeviceOrientationEvent !== 'undefined' &&
   startGyro();
 }
 
-// タップで花火打ち上げ！
-document.getElementById('arCanvas').style.pointerEvents = 'all';
-document.getElementById('arCanvas').addEventListener('click', (e) => {
+// ── タップ処理 ──
+fxCanvas.addEventListener('click', (e) => {
   try { getAudio().resume(); } catch(err){}
+
+  // 小さい花火を打ち上げ
   spawnBurst(e.clientX, e.clientY, false);
-  document.getElementById('arStatus').textContent = '🎆 花火！';
-  setTimeout(() => {
-    document.getElementById('arStatus').textContent = '✨ タップして花火を打ち上げよう！';
-  }, 1200);
+
+  // 作品トグル
+  if(!worksVisible) {
+    showWorks();
+  } else {
+    hideWorks();
+  }
 });
 
-// HTMLオーバーレイの作品を向きに合わせて動かす
+// HTMLオーバーレイをジャイロで空間固定
 function updateOverlayPositions() {
-  const yawDeg = gyroAlpha;
-  const pitchDeg = gyroBeta - 90; // 水平が0
-
-  // 全HTMLオーバーレイ作品を取得して位置を更新
-  document.querySelectorAll('.ar-work-overlay').forEach(el => {
-    const baseX = parseFloat(el.dataset.baseX);
-    const baseY = parseFloat(el.dataset.baseY);
-
-    // ジャイロのずれを位置に反映
-    const offsetX = -yawDeg * 5;
-    const offsetY = pitchDeg * 5;
-
-    const newLeft = baseX + offsetX;
-    const newTop  = baseY + offsetY;
-    el.style.left = newLeft + 'px';
-
-    // 名前タグも同様に
-    const nameEl = document.getElementById('name_' + el.dataset.workId);
-    if(nameEl) {
-      nameEl.style.left = newLeft + 'px';
-      nameEl.style.top  = (newTop + parseInt(el.dataset.height || 120) + 5) + 'px';
-    }
+  workItems.forEach(item => {
+    const offsetX = gyroYaw * 4;
+    const offsetY = gyroPitch * 4;
+    const newLeft = item.baseLeft + offsetX;
+    const newTop  = item.baseTop  + offsetY + item.floatOffset;
+    item.imgEl.style.left = newLeft + 'px';
+    item.imgEl.style.top  = newTop + 'px';
+    item.nameEl.style.left = newLeft + 'px';
+    item.nameEl.style.top  = (newTop + parseInt(item.imgEl.dataset.height||120) + 5) + 'px';
   });
 }
 
-// レンダリング
+// レンダリングループ
 let t = 0;
 function animate() {
   requestAnimationFrame(animate);
   t += 0.02;
-  works.forEach(w => {
-    if(w.mesh) w.mesh.position.y = w.baseY + Math.sin(t + w.phase) * 0.06;
+  meshWorks.forEach(w => {
+    if(w.mesh.visible) w.mesh.position.y = w.baseY + Math.sin(t + w.phase) * 0.06;
   });
   updateOverlayPositions();
   renderFX();
