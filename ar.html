@@ -109,7 +109,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v6.1</div>
+    <div class="ver">v6.2</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
   <div class="hint" id="hintText">📱 作品タップで輪郭花火に変身！</div>
@@ -197,7 +197,7 @@ function setStatus(t,g=false){els.statusText.textContent=t;els.statusText.classL
 function updateHeader(){
   els.headerTitle.textContent='みんなのARはなび';
   els.headerSub.textContent='カメラを動かして見渡してね';
-  els.hintText.textContent='📱 作品タップで輪郭花火！空白タップで全部出す/消す';
+  els.hintText.textContent='📱 作品タップでマイクラブロック花火！空白タップで全部出す/消す';
   els.btnCamera.classList.add('active');
 }
 function setMode(mode){
@@ -220,55 +220,35 @@ function selectWork(id){
 }
 
 // ══════════════════════════════════════════════
-// 🎆 輪郭花火エンジン v2
+// 🧱 ボクセルブロック花火エンジン v3
 // ══════════════════════════════════════════════
 
-// ① エッジ検出：128px解像度・8方向カラー距離（子供の絵向け）
-function detectEdgePixels(imgSource, displayW, displayH, cx, cy) {
-  const S = 128;
+// ① 画像をマイクラ風ボクセルグリッドに変換
+function detectVoxelPixels(imgSource, displayW, displayH, cx, cy) {
+  const GRID = 18;
   const cv = document.createElement('canvas');
-  cv.width = S; cv.height = S;
+  cv.width = GRID; cv.height = GRID;
   const ctx = cv.getContext('2d');
-  ctx.drawImage(imgSource, 0, 0, S, S);
-  const d = ctx.getImageData(0, 0, S, S).data;
-
-  function cdist(i, j) {
-    if(d[i+3] < 15 || d[j+3] < 15) return Math.abs(d[i+3]-d[j+3])*2;
-    const dr=d[i]-d[j], dg=d[i+1]-d[j+1], db=d[i+2]-d[j+2];
-    return Math.sqrt(dr*dr + dg*dg + db*db);
-  }
-
-  const raw = [];
-  for(let y=1; y<S-1; y++){
-    for(let x=1; x<S-1; x++){
-      const i = (y*S+x)*4;
-      if(d[i+3] < 10) continue;
-      const ns = [
-        ((y-1)*S+(x-1))*4, ((y-1)*S+x)*4, ((y-1)*S+(x+1))*4,
-        (y*S+(x-1))*4,                      (y*S+(x+1))*4,
-        ((y+1)*S+(x-1))*4, ((y+1)*S+x)*4, ((y+1)*S+(x+1))*4
-      ];
-      let mx = 0;
-      for(const ni of ns) mx = Math.max(mx, cdist(i, ni));
-      if(mx > 28) {
-        raw.push({
-          px: (cx - displayW/2) + (x/S)*displayW,
-          py: (cy - displayH/2) + (y/S)*displayH,
-          r: d[i], g: d[i+1], b: d[i+2]
-        });
-      }
+  ctx.drawImage(imgSource, 0, 0, GRID, GRID);
+  const d = ctx.getImageData(0, 0, GRID, GRID).data;
+  const pixels = [];
+  for(let y = 0; y < GRID; y++){
+    for(let x = 0; x < GRID; x++){
+      const i = (y*GRID+x)*4;
+      if(d[i+3] < 30) continue;
+      pixels.push({
+        px: (cx - displayW/2) + (x+0.5)/GRID*displayW,
+        py: (cy - displayH/2) + (y+0.5)/GRID*displayH,
+        r: d[i], g: d[i+1], b: d[i+2]
+      });
     }
   }
-
-  // 均等サブサンプリング（最大380点）
-  if(raw.length <= 380) return raw;
-  const step = raw.length / 380;
-  return Array.from({length:380}, (_,k) => raw[Math.floor(k*step)]);
+  return pixels;
 }
 
-// ② ロケット打ち上げ → 輪郭展開 → 爆発
-function launchOutlineFirework(edgePixels, cx, cy) {
-  if(edgePixels.length === 0) { spawnBurst(cx, cy, true); return; }
+// ② ロケット打ち上げ → ボクセル展開（画像の形）→ ブロック爆散
+function launchVoxelFirework(voxelPixels, cx, cy) {
+  if(voxelPixels.length === 0) { spawnBurst(cx, cy, true); return; }
 
   const launchY = window.innerHeight + 10;
   const ROCKET_FRAMES = 32;
@@ -281,7 +261,7 @@ function launchOutlineFirework(edgePixels, cx, cy) {
     size:6, color:'#ffffff', life:1.0, decay:0
   });
 
-  // サイドロケット × 2（少し遅れて）
+  // サイドロケット × 2
   setTimeout(()=>{
     [-60, 60].forEach(dx=>{
       particles2D.push({
@@ -294,40 +274,48 @@ function launchOutlineFirework(edgePixels, cx, cy) {
     });
   }, 170);
 
-  // 輪郭パーティクル：ロケット到着後にスポーン（3D）
+  // ボクセルブロック：ロケット到着後にスポーン
   setTimeout(()=>{
-    const TRAVEL_F=22, SCALE=2.8;
-    edgePixels.forEach(p=>{
-      const tv=TRAVEL_F+Math.floor(Math.random()*3);
+    const TRAVEL_F=20, SCALE=2.2;
+    const centerPos=screenTo3D(cx,cy,0);
+    voxelPixels.forEach(p=>{
+      const tv=TRAVEL_F+Math.floor(Math.random()*5);
       const dx=(p.px-cx)*SCALE, dy=(p.py-cy)*SCALE;
       const tx=cx+dx, ty=cy+dy;
-      const zOff=(Math.random()-0.5)*0.5;
+      const zOff=(Math.random()-0.5)*0.4;
       const sp=screenTo3D(cx,cy,zOff), ep=screenTo3D(tx,ty,zOff);
-      const d3x=ep.x-sp.x, d3y=ep.y-sp.y;
-      const d3=Math.sqrt(d3x*d3x+d3y*d3y)||1;
+      // 爆発方向：各ブロックが中心から外に吹き飛ぶ
+      const edx=ep.x-centerPos.x, edy=ep.y-centerPos.y, edz=ep.z-centerPos.z;
+      const edist=Math.sqrt(edx*edx+edy*edy+edz*edz)||0.1;
+      const str=0.04+Math.random()*0.07;
       particles3D.push({
         phase:'travel',
         x:sp.x,y:sp.y,z:sp.z, sx:sp.x,sy:sp.y,sz:sp.z,
         tx:ep.x,ty:ep.y,tz:ep.z, tf:tv,tl:tv,
-        ef:50,
-        vx:(d3x/d3)*0.0035+(Math.random()-0.5)*0.001,
-        vy:(d3y/d3)*0.0035+(Math.random()-0.5)*0.001,
-        vz:(Math.random()-0.5)*0.002,
+        ef:62,           // ホールドフレーム：約1秒間静止して画像を見せる
+        vx:0,vy:0,vz:0,  // ホールド中は動かない
+        evx:(edx/edist)*str+(Math.random()-0.5)*0.018,
+        evy:(edy/edist)*str+Math.random()*0.025,
+        evz:(edz/edist)*str+(Math.random()-0.5)*0.018,
         c:[p.r/255,p.g/255,p.b/255],
-        life:1.0,decay:0.003+Math.random()*0.002,s:0.016+Math.random()*0.01
+        life:1.0, decay:0.006+Math.random()*0.005,
+        s:0.14+Math.random()*0.07,  // 大きなブロック
+        rot:Math.random()*Math.PI*2, angV:0  // 爆発時に回転開始
       });
     });
     playGrandBoom();
-    // 金のシマー
-    for(let i=0;i<60;i++){
-      const a=Math.random()*Math.PI*2, r=20+Math.random()*120;
-      const sp=screenTo3D(cx+Math.cos(a)*r, cy+Math.sin(a)*r, (Math.random()-0.5)*0.5);
+    // 金ブロックのシマー
+    for(let i=0;i<40;i++){
+      const a=Math.random()*Math.PI*2, r=20+Math.random()*100;
+      const sp=screenTo3D(cx+Math.cos(a)*r, cy+Math.sin(a)*r, (Math.random()-0.5)*0.4);
       const shimCols=[[1,0.93,0.27],[1,1,1],[1,0.8,0.53],[1,0.67,0.13]];
       particles3D.push({
         x:sp.x,y:sp.y,z:sp.z,
-        vx:(Math.random()-0.5)*0.014,vy:0.009+Math.random()*0.024,vz:(Math.random()-0.5)*0.009,
+        vx:(Math.random()-0.5)*0.018,vy:0.01+Math.random()*0.025,vz:(Math.random()-0.5)*0.01,
         c:shimCols[Math.floor(Math.random()*shimCols.length)],
-        life:1.0,decay:0.004+Math.random()*0.005,s:0.016+Math.random()*0.025,phase:'fall'
+        life:1.0, decay:0.005+Math.random()*0.005,
+        s:0.08+Math.random()*0.08, phase:'fall',
+        rot:Math.random()*Math.PI*2, angV:(Math.random()-0.5)*0.2
       });
     }
   }, 530);
@@ -349,8 +337,8 @@ function explodeWorkToFirework(imgEl, nameEl, work, cx, cy) {
   try {
     const w=parseFloat(imgEl.style.width)||120;
     const h=parseFloat(imgEl.style.height)||120;
-    const edgePixels = detectEdgePixels(imgEl, w, h, cx, cy);
-    launchOutlineFirework(edgePixels, cx, cy);
+    const voxelPixels = detectVoxelPixels(imgEl, w, h, cx, cy);
+    launchVoxelFirework(voxelPixels, cx, cy);
   } catch(e){
     spawnBurst(cx, cy, true);
   }
@@ -376,8 +364,8 @@ function explodeWorldWork(mesh, work, sx, sy) {
 
   function doExplode(imgSource){
     try {
-      const edgePixels=detectEdgePixels(imgSource,120,120,sx,sy);
-      launchOutlineFirework(edgePixels,sx,sy);
+      const voxelPixels=detectVoxelPixels(imgSource,120,120,sx,sy);
+      launchVoxelFirework(voxelPixels,sx,sy);
     } catch(e){ spawnBurst(sx,sy,true); }
     playRocketWhistle();
   }
@@ -466,34 +454,44 @@ camThreeCamera.position.set(0,0,3);
 cameraScene.add(new THREE.AmbientLight(0xffffff,2));
 const cameraWorks=[],cameraAddedIds=new Set();
 
-// ── 3D パーティクルシステム ──
+// ── 3D パーティクルシステム（マイクラブロック）──
 const P3D_MAX=5000;
 const p3Pos=new Float32Array(P3D_MAX*3);
 const p3Col=new Float32Array(P3D_MAX*3);
 const p3Alp=new Float32Array(P3D_MAX);
 const p3Siz=new Float32Array(P3D_MAX);
+const p3Rot=new Float32Array(P3D_MAX);
 const p3Geo=new THREE.BufferGeometry();
 p3Geo.setAttribute('position',new THREE.BufferAttribute(p3Pos,3));
 p3Geo.setAttribute('aColor',  new THREE.BufferAttribute(p3Col,3));
 p3Geo.setAttribute('aAlpha',  new THREE.BufferAttribute(p3Alp,1));
 p3Geo.setAttribute('aSiz',    new THREE.BufferAttribute(p3Siz,1));
+p3Geo.setAttribute('aRot',    new THREE.BufferAttribute(p3Rot,1));
 const p3Mat=new THREE.ShaderMaterial({
   vertexShader:`
-    attribute vec3 aColor;attribute float aAlpha;attribute float aSiz;
-    varying vec3 vCol;varying float vAlp;
+    attribute vec3 aColor;attribute float aAlpha;attribute float aSiz;attribute float aRot;
+    varying vec3 vCol;varying float vAlp;varying float vRot;
     void main(){
-      vCol=aColor;vAlp=aAlpha;
+      vCol=aColor;vAlp=aAlpha;vRot=aRot;
       vec4 mv=modelViewMatrix*vec4(position,1.0);
       gl_PointSize=aSiz*(400.0/-mv.z);
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
-    varying vec3 vCol;varying float vAlp;
+    varying vec3 vCol;varying float vAlp;varying float vRot;
     void main(){
-      float d=length(gl_PointCoord-vec2(0.5))*2.0;
-      float a=(1.0-smoothstep(0.25,1.0,d))*vAlp;
-      if(a<0.01)discard;
-      gl_FragColor=vec4(vCol,a);
+      vec2 uv=gl_PointCoord-0.5;
+      float c=cos(vRot);float s=sin(vRot);
+      uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y)+0.5;
+      if(uv.x<0.02||uv.x>0.98||uv.y<0.02||uv.y>0.98)discard;
+      float b=0.09;
+      if(uv.x<b||uv.x>1.0-b||uv.y<b||uv.y>1.0-b){
+        gl_FragColor=vec4(vCol*0.1,vAlp*0.5);return;
+      }
+      float shade=uv.y<0.36?1.4:(uv.y>0.64?0.6:1.0);
+      if(uv.x<b+0.04) shade*=0.82;
+      if(uv.x>1.0-b-0.04) shade*=0.72;
+      gl_FragColor=vec4(clamp(vCol*shade,0.0,1.0),vAlp);
     }`,
   transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
 });
@@ -528,19 +526,25 @@ function update3DParticles(){
     } else if(p.phase==='expand'){
       p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;
       p.ef--;
-      if(p.ef<=0)p.phase='fall';
+      if(p.ef<=0){
+        p.phase='fall';
+        if(p.evx!==undefined){p.vx=p.evx;p.vy=p.evy;p.vz=p.evz;}
+        if(p.angV!==undefined) p.angV=(Math.random()-0.5)*0.38;
+      }
     } else {
       p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;
-      p.vy-=0.0006;p.vx*=0.99;p.vz*=0.98;
+      p.vy-=0.0006;p.vx*=0.98;p.vz*=0.97;
+      if(p.rot!==undefined) p.rot+=p.angV||0;
       p.life-=p.decay;
       if(p.life<=0){particles3D.splice(i,1);continue;}
     }
     if(cnt>=P3D_MAX)continue;
     p3Pos[cnt*3]=p.x;p3Pos[cnt*3+1]=p.y;p3Pos[cnt*3+2]=p.z;
     p3Col[cnt*3]=p.c[0];p3Col[cnt*3+1]=p.c[1];p3Col[cnt*3+2]=p.c[2];
-    const al=p.phase==='fall'?p.life*0.9:p.phase==='expand'?0.92:0.55;
+    const al=p.phase==='fall'?p.life*0.9:p.phase==='expand'?0.95:0.6;
     p3Alp[cnt]=al;
-    p3Siz[cnt]=p.s*(p.phase==='travel'?0.65:1.0);
+    p3Siz[cnt]=p.s*(p.phase==='travel'?0.6:1.0);
+    p3Rot[cnt]=p.rot||0;
     cnt++;
   }
   for(let i=cnt;i<Math.min(cnt+200,P3D_MAX);i++)p3Alp[i]=0;
@@ -549,6 +553,7 @@ function update3DParticles(){
   p3Geo.attributes.aColor.needsUpdate=true;
   p3Geo.attributes.aAlpha.needsUpdate=true;
   p3Geo.attributes.aSiz.needsUpdate=true;
+  p3Geo.attributes.aRot.needsUpdate=true;
 }
 
 function rebuildCameraOverlays(){
@@ -731,7 +736,8 @@ function spawnBurst(sx,sy,big=false){
       vz:Math.cos(phi)*sp*0.5,
       c:cssToRgb(cols[Math.floor(Math.random()*cols.length)]),
       life:1,decay:0.009+Math.random()*0.015,
-      s:0.022+Math.random()*(big?0.05:0.03),phase:'fall'
+      s:0.055+Math.random()*(big?0.09:0.055),phase:'fall',
+      rot:Math.random()*Math.PI*2, angV:(Math.random()-0.5)*0.24
     });
   }
   // shimmer
@@ -740,7 +746,9 @@ function spawnBurst(sx,sy,big=false){
     particles3D.push({
       x:pos.x+Math.cos(a)*r,y:pos.y+Math.sin(a)*r,z:pos.z+(Math.random()-0.5)*0.2,
       vx:(Math.random()-0.5)*0.016,vy:0.01+Math.random()*0.028,vz:(Math.random()-0.5)*0.01,
-      c:[1,0.93,0.27],life:1,decay:0.009+Math.random()*0.008,s:0.018+Math.random()*0.022,phase:'fall'
+      c:[1,0.93,0.27],life:1,decay:0.009+Math.random()*0.008,
+      s:0.045+Math.random()*0.045,phase:'fall',
+      rot:Math.random()*Math.PI*2, angV:(Math.random()-0.5)*0.2
     });
   }
   playWhistle();
