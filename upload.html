@@ -39,7 +39,6 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
   font-size:10px;font-weight:700;
 }
 .preview-badge.png{background:rgba(100,255,150,0.2);color:#88ffaa;border:1px solid rgba(100,255,150,0.3);}
-.preview-badge.glb{background:rgba(100,180,255,0.2);color:#88ddff;border:1px solid rgba(100,180,255,0.3);}
 
 /* 入力 */
 .section-label{font-size:11px;color:var(--muted);letter-spacing:0.1em;margin-bottom:8px;margin-top:20px;display:flex;align-items:center;gap:6px;}
@@ -49,11 +48,10 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .name-input:focus{border-color:rgba(255,200,60,0.4);}
 
 /* ファイル選択ボタン */
-.file-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.file-btns{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px;}
 .file-btn{padding:12px 8px;border-radius:12px;border:1.5px dashed rgba(255,255,255,0.2);background:transparent;color:var(--muted);font-size:12px;text-align:center;cursor:pointer;transition:all 0.15s;}
 .file-btn:active{transform:scale(0.97);}
 .file-btn.png-btn{border-color:rgba(100,255,150,0.3);}
-.file-btn.glb-btn{border-color:rgba(100,180,255,0.3);}
 .file-btn .bi{font-size:24px;display:block;margin-bottom:4px;}
 
 /* アップロードボタン */
@@ -113,7 +111,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
   <a class="back" href="index.html">←</a>
   <div>
     <div class="header-title">さくひんをアップする</div>
-    <div class="header-sub">えやモデルをARにのせよう</div>
+    <div class="header-sub">えをARにのせよう</div>
   </div>
 </div>
 
@@ -128,7 +126,6 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     </div>
   </div>
   <input type="file" id="pngInput" accept="image/*" style="display:none;" onchange="handlePNG(this)">
-  <input type="file" id="glbInput" accept=".glb,.gltf" style="display:none;" onchange="handleGLB(this)">
 
   <!-- 名前 -->
   <div class="section-label">なまえ</div>
@@ -140,10 +137,6 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     <div class="file-btn png-btn" onclick="document.getElementById('pngInput').click()">
       <span class="bi">🖼️</span>
       えや写真<br>（PNG・JPG）
-    </div>
-    <div class="file-btn glb-btn" onclick="document.getElementById('glbInput').click()">
-      <span class="bi">🧊</span>
-      3Dモデル<br>（GLB）
     </div>
   </div>
 
@@ -210,27 +203,6 @@ function handlePNG(input) {
   document.getElementById('successMsg').classList.remove('show');
 }
 
-// GLB選択
-function handleGLB(input) {
-  const file = input.files[0];
-  if(!file) return;
-  selectedFile = file;
-  selectedType = 'glb';
-
-  const wrap = document.getElementById('previewWrap');
-  wrap.innerHTML = `
-    <div class="preview-placeholder">
-      <div class="icon">🧊</div>
-      <div class="text">${file.name}</div>
-      <div class="sub">${(file.size/1024).toFixed(0)}KB</div>
-    </div>
-    <div class="preview-badge glb">GLB</div>
-  `;
-  wrap.onclick = () => document.getElementById('glbInput').click();
-  document.getElementById('uploadBtn').classList.add('show');
-  document.getElementById('successMsg').classList.remove('show');
-}
-
 // アップロード
 async function uploadWork() {
   if(!selectedFile) return;
@@ -246,7 +218,7 @@ async function uploadWork() {
 
   try {
     // Storageにアップロード
-    const ext = selectedType === 'glb' ? 'glb' : selectedFile.name.split('.').pop();
+    const ext = selectedFile.name.split('.').pop();
     const filename = `works/${Date.now()}_${name}.${ext}`;
     const ref = storage.ref(filename);
     const task = ref.put(selectedFile);
@@ -289,7 +261,6 @@ async function uploadWork() {
     `;
     document.getElementById('previewWrap').onclick = () => document.getElementById('pngInput').click();
     document.getElementById('pngInput').value = '';
-    document.getElementById('glbInput').value = '';
 
   } catch(e) {
     alert('エラーが発生しました: ' + e.message);
@@ -312,9 +283,9 @@ db.ref('works').on('value', (snap) => {
   Object.entries(works).reverse().forEach(([key, work]) => {
     const item = document.createElement('div');
     item.className = 'work-item';
-    const thumb = work.type === 'png'
+    const thumb = work.url
       ? `<img src="${work.url}" style="width:100%;height:100%;object-fit:cover;">`
-      : `<span style="font-size:24px;">🧊</span>`;
+      : `<span style="font-size:24px;">🖼️</span>`;
     const date = new Date(work.createdAt).toLocaleDateString('ja-JP');
     item.innerHTML = `
       <div class="work-thumb">${thumb}</div>
