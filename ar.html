@@ -39,11 +39,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
 .btn.strong{background:rgba(255,140,0,0.22);border-color:rgba(255,180,0,0.45);color:var(--gold);}
 .hint{position:fixed;left:0;right:0;bottom:96px;text-align:center;font-size:11px;color:var(--muted);pointer-events:none;z-index:18;animation:fadeout 5s ease forwards;animation-delay:4s;}
 @keyframes fadeout{to{opacity:0;}}
-#thumbRail{position:fixed;left:0;right:0;bottom:90px;z-index:19;display:flex;gap:8px;padding:0 16px;overflow-x:auto;scrollbar-width:none;pointer-events:auto;}
-#thumbRail::-webkit-scrollbar{display:none;}
-.thumb{width:58px;height:58px;flex:0 0 auto;border-radius:10px;border:2px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-.thumb.active{border-color:var(--gold);box-shadow:0 0 14px rgba(255,200,60,0.35);}
-.thumb img{width:100%;height:100%;object-fit:cover;}
+
 #viewerModal{z-index:40;background:rgba(3,0,12,0.94);display:none;}
 #viewerWrap{position:absolute;inset:70px 0 110px;display:flex;align-items:center;justify-content:center;}
 #viewerName{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);}
@@ -113,14 +109,12 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v6.0</div>
+    <div class="ver">v6.1</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
-  <div class="hint" id="hintText">📱 作品タップで輪郭が光ってから花火に変身！</div>
-  <div id="thumbRail"></div>
+  <div class="hint" id="hintText">📱 作品タップで輪郭花火に変身！</div>
   <div class="bottom">
-    <div class="btn active" id="btnWorld" onclick="setMode('world')"><span class="bi">🌍</span>ワールド</div>
-    <div class="btn" id="btnCamera" onclick="setMode('camera')"><span class="bi">📷</span>カメラAR</div>
+    <div class="btn active" id="btnCamera"><span class="bi">📷</span>カメラAR</div>
     <div class="btn strong" onclick="openViewer()"><span class="bi">🖼️</span>作品を見る</div>
   </div>
 </div>
@@ -170,7 +164,7 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
 const state={
-  mode:'world',works:[],currentWork:null,
+  mode:'camera',works:[],currentWork:null,
   useGyro:false,yaw:0,pitch:0,
   worldObjects:[],loadingSteps:0,loadingGoal:2,
   worksVisible:false,
@@ -180,14 +174,13 @@ const els={
   cameraStage:  document.getElementById('cameraStage'),
   viewerModal:  document.getElementById('viewerModal'),
   workCount:    document.getElementById('workCount'),
-  thumbRail:    document.getElementById('thumbRail'),
   loadingBar:   document.getElementById('loadingBar'),
   loadingScreen:document.getElementById('loadingScreen'),
   statusText:   document.getElementById('statusText'),
   hintText:     document.getElementById('hintText'),
   headerTitle:  document.getElementById('headerTitle'),
   headerSub:    document.getElementById('headerSub'),
-  btnWorld:     document.getElementById('btnWorld'),
+
   btnCamera:    document.getElementById('btnCamera'),
   gyroPrompt:   document.getElementById('gyroPrompt'),
   cameraVideo:  document.getElementById('cameraVideo'),
@@ -202,17 +195,10 @@ function advanceLoading(s=1){
 }
 function setStatus(t,g=false){els.statusText.textContent=t;els.statusText.classList.toggle('good',!!g);}
 function updateHeader(){
-  if(state.mode==='camera'){
-    els.headerTitle.textContent='花火の写真に向けてね';
-    els.headerSub.textContent='作品タップで輪郭花火に変身！';
-    els.hintText.textContent='🎆 作品タップで輪郭から花火化！空白タップで全部出す/消す';
-  } else {
-    els.headerTitle.textContent='みんなのAR空間';
-    els.headerSub.textContent='スマホを動かして見渡してね';
-    els.hintText.textContent='📱 作品タップで輪郭花火！空白タップで全部出す/消す';
-  }
-  els.btnWorld.classList.toggle('active',state.mode==='world');
-  els.btnCamera.classList.toggle('active',state.mode==='camera');
+  els.headerTitle.textContent='みんなのARはなび';
+  els.headerSub.textContent='カメラを動かして見渡してね';
+  els.hintText.textContent='📱 作品タップで輪郭花火！空白タップで全部出す/消す';
+  els.btnCamera.classList.add('active');
 }
 function setMode(mode){
   state.mode=mode;state.worksVisible=false;
@@ -227,25 +213,9 @@ function setMode(mode){
   else setStatus('✨ タップして作品を出そう！',true);
 }
 
-// ── サムネイル ──
-function makeThumb(work,active=false){
-  const t=document.createElement('div');
-  t.className='thumb'+(active?' active':'');
-  t.dataset.id=work.id;
-  t.onclick=()=>{selectWork(work.id);openViewer();};
-  t.innerHTML=(work.type==='png'&&work.url)
-    ?`<img src="${work.url}" crossorigin="anonymous">`
-    :'<div style="font-size:24px">🖼️</div>';
-  return t;
-}
-function rebuildThumbs(){
-  els.thumbRail.innerHTML='';
-  state.works.forEach((w,i)=>els.thumbRail.appendChild(makeThumb(w,i===0&&state.currentWork?.id===w.id)));
-}
 function selectWork(id){
   const w=state.works.find(x=>x.id===id)||state.works[0]||null;
   if(!w)return;state.currentWork=w;
-  document.querySelectorAll('.thumb').forEach(el=>el.classList.toggle('active',el.dataset.id===w.id));
   if(els.viewerModal.style.display==='block')loadViewerWork(w);
 }
 
@@ -324,40 +294,40 @@ function launchOutlineFirework(edgePixels, cx, cy) {
     });
   }, 170);
 
-  // 輪郭パーティクル：ロケット到着後にスポーン
+  // 輪郭パーティクル：ロケット到着後にスポーン（3D）
   setTimeout(()=>{
-    const TRAVEL_F = 22, SCALE = 2.8;
+    const TRAVEL_F=22, SCALE=2.8;
     edgePixels.forEach(p=>{
-      const tv = TRAVEL_F + Math.floor(Math.random()*3); // タイミングを揃える
+      const tv=TRAVEL_F+Math.floor(Math.random()*3);
       const dx=(p.px-cx)*SCALE, dy=(p.py-cy)*SCALE;
       const tx=cx+dx, ty=cy+dy;
-      const dist=Math.sqrt(dx*dx+dy*dy)||1;
-      const SPREAD=1.4;
-      particles2D.push({
-        type:'outline', phase:'travel',
-        x:cx, y:cy, startX:cx, startY:cy, targetX:tx, targetY:ty,
-        travelFrames:tv, travelLeft:tv,
-        expandFrames:48,
-        vx:(dx/dist)*0.28+(Math.random()-0.5)*0.14,
-        vy:(dy/dist)*0.18-0.08+(Math.random()-0.5)*0.12,
-        color:`rgb(${p.r},${p.g},${p.b})`,
-        life:1.0, decay:0.003+Math.random()*0.002,
-        size:1.8+Math.random()*1.4,
+      const zOff=(Math.random()-0.5)*0.5;
+      const sp=screenTo3D(cx,cy,zOff), ep=screenTo3D(tx,ty,zOff);
+      const d3x=ep.x-sp.x, d3y=ep.y-sp.y;
+      const d3=Math.sqrt(d3x*d3x+d3y*d3y)||1;
+      particles3D.push({
+        phase:'travel',
+        x:sp.x,y:sp.y,z:sp.z, sx:sp.x,sy:sp.y,sz:sp.z,
+        tx:ep.x,ty:ep.y,tz:ep.z, tf:tv,tl:tv,
+        ef:50,
+        vx:(d3x/d3)*0.0035+(Math.random()-0.5)*0.001,
+        vy:(d3y/d3)*0.0035+(Math.random()-0.5)*0.001,
+        vz:(Math.random()-0.5)*0.002,
+        c:[p.r/255,p.g/255,p.b/255],
+        life:1.0,decay:0.003+Math.random()*0.002,s:0.016+Math.random()*0.01
       });
     });
     playGrandBoom();
-
-    // 金のシマー（輪郭展開と同時に降り注ぐ）
+    // 金のシマー
     for(let i=0;i<60;i++){
-      const a=Math.random()*Math.PI*2, r=15+Math.random()*130;
-      particles2D.push({
-        type:'shimmer',
-        x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r,
-        vx:(Math.random()-0.5)*1.4, vy:-1.2-Math.random()*3,
-        color:['#ffee44','#ffffff','#ffcc88','#ffffaa','#ffaa22'][Math.floor(Math.random()*5)],
-        life:1.0, decay:0.004+Math.random()*0.005,
-        size:1.5+Math.random()*3,
-        twinkle:Math.random()*Math.PI*2
+      const a=Math.random()*Math.PI*2, r=20+Math.random()*120;
+      const sp=screenTo3D(cx+Math.cos(a)*r, cy+Math.sin(a)*r, (Math.random()-0.5)*0.5);
+      const shimCols=[[1,0.93,0.27],[1,1,1],[1,0.8,0.53],[1,0.67,0.13]];
+      particles3D.push({
+        x:sp.x,y:sp.y,z:sp.z,
+        vx:(Math.random()-0.5)*0.014,vy:0.009+Math.random()*0.024,vz:(Math.random()-0.5)*0.009,
+        c:shimCols[Math.floor(Math.random()*shimCols.length)],
+        life:1.0,decay:0.004+Math.random()*0.005,s:0.016+Math.random()*0.025,phase:'fall'
       });
     }
   }, 530);
@@ -495,6 +465,91 @@ const camThreeCamera=new THREE.PerspectiveCamera(60,window.innerWidth/window.inn
 camThreeCamera.position.set(0,0,3);
 cameraScene.add(new THREE.AmbientLight(0xffffff,2));
 const cameraWorks=[],cameraAddedIds=new Set();
+
+// ── 3D パーティクルシステム ──
+const P3D_MAX=5000;
+const p3Pos=new Float32Array(P3D_MAX*3);
+const p3Col=new Float32Array(P3D_MAX*3);
+const p3Alp=new Float32Array(P3D_MAX);
+const p3Siz=new Float32Array(P3D_MAX);
+const p3Geo=new THREE.BufferGeometry();
+p3Geo.setAttribute('position',new THREE.BufferAttribute(p3Pos,3));
+p3Geo.setAttribute('aColor',  new THREE.BufferAttribute(p3Col,3));
+p3Geo.setAttribute('aAlpha',  new THREE.BufferAttribute(p3Alp,1));
+p3Geo.setAttribute('aSiz',    new THREE.BufferAttribute(p3Siz,1));
+const p3Mat=new THREE.ShaderMaterial({
+  vertexShader:`
+    attribute vec3 aColor;attribute float aAlpha;attribute float aSiz;
+    varying vec3 vCol;varying float vAlp;
+    void main(){
+      vCol=aColor;vAlp=aAlpha;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      gl_PointSize=aSiz*(400.0/-mv.z);
+      gl_Position=projectionMatrix*mv;
+    }`,
+  fragmentShader:`
+    varying vec3 vCol;varying float vAlp;
+    void main(){
+      float d=length(gl_PointCoord-vec2(0.5))*2.0;
+      float a=(1.0-smoothstep(0.25,1.0,d))*vAlp;
+      if(a<0.01)discard;
+      gl_FragColor=vec4(vCol,a);
+    }`,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+});
+p3Geo.setDrawRange(0,0);
+const p3Points=new THREE.Points(p3Geo,p3Mat);
+cameraScene.add(p3Points);
+
+const _cc2=document.createElement('canvas').getContext('2d');
+function cssToRgb(css){
+  _cc2.fillStyle=css;
+  const h=_cc2.fillStyle;
+  return [parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255];
+}
+function screenTo3D(sx,sy,z=0){
+  const d=camThreeCamera.position.z-z;
+  const halfH=d*Math.tan(THREE.MathUtils.degToRad(camThreeCamera.fov/2));
+  const halfW=halfH*camThreeCamera.aspect;
+  return new THREE.Vector3(((sx/window.innerWidth)*2-1)*halfW,(-(sy/window.innerHeight)*2+1)*halfH,z);
+}
+
+const particles3D=[];
+function update3DParticles(){
+  let cnt=0;
+  for(let i=particles3D.length-1;i>=0;i--){
+    const p=particles3D[i];
+    if(p.phase==='travel'){
+      p.tl--;
+      const prog=1-p.tl/p.tf;
+      const e=prog<0.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
+      p.x=p.sx+(p.tx-p.sx)*e; p.y=p.sy+(p.ty-p.sy)*e; p.z=p.sz+(p.tz-p.sz)*e;
+      if(p.tl<=0){p.x=p.tx;p.y=p.ty;p.z=p.tz;p.phase='expand';}
+    } else if(p.phase==='expand'){
+      p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;
+      p.ef--;
+      if(p.ef<=0)p.phase='fall';
+    } else {
+      p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;
+      p.vy-=0.0006;p.vx*=0.99;p.vz*=0.98;
+      p.life-=p.decay;
+      if(p.life<=0){particles3D.splice(i,1);continue;}
+    }
+    if(cnt>=P3D_MAX)continue;
+    p3Pos[cnt*3]=p.x;p3Pos[cnt*3+1]=p.y;p3Pos[cnt*3+2]=p.z;
+    p3Col[cnt*3]=p.c[0];p3Col[cnt*3+1]=p.c[1];p3Col[cnt*3+2]=p.c[2];
+    const al=p.phase==='fall'?p.life*0.9:p.phase==='expand'?0.92:0.55;
+    p3Alp[cnt]=al;
+    p3Siz[cnt]=p.s*(p.phase==='travel'?0.65:1.0);
+    cnt++;
+  }
+  for(let i=cnt;i<Math.min(cnt+200,P3D_MAX);i++)p3Alp[i]=0;
+  p3Geo.setDrawRange(0,cnt);
+  p3Geo.attributes.position.needsUpdate=true;
+  p3Geo.attributes.aColor.needsUpdate=true;
+  p3Geo.attributes.aAlpha.needsUpdate=true;
+  p3Geo.attributes.aSiz.needsUpdate=true;
+}
 
 function rebuildCameraOverlays(){
   document.querySelectorAll('.ar-work-overlay,.ar-work-name').forEach(el=>el.remove());
@@ -662,23 +717,30 @@ function playRocketWhistle(){
     osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.53);
   }catch(e){}
 }
-function spawnBurst(x,y,big=false){
+function spawnBurst(sx,sy,big=false){
   const cols=['#ff6644','#ff9900','#ffee22','#44ffaa','#44aaff','#dd44ff','#ff88dd','#44ffff','#ffffff','#ffcc44'];
   const cnt=big?100:55;
+  const pos=screenTo3D(sx,sy,0);
   for(let i=0;i<cnt;i++){
-    const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*(big?10:6);
-    const c=cols[Math.floor(Math.random()*cols.length)];
-    particles2D.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color:c,life:1,decay:0.009+Math.random()*0.015,size:2.5+Math.random()*(big?5:3),holdFrames:0});
+    const theta=Math.random()*Math.PI*2,phi=Math.acos(2*Math.random()-1);
+    const sp=0.014+Math.random()*(big?0.055:0.035);
+    particles3D.push({
+      x:pos.x,y:pos.y,z:pos.z,
+      vx:Math.sin(phi)*Math.cos(theta)*sp,
+      vy:Math.sin(phi)*Math.sin(theta)*sp,
+      vz:Math.cos(phi)*sp*0.5,
+      c:cssToRgb(cols[Math.floor(Math.random()*cols.length)]),
+      life:1,decay:0.009+Math.random()*0.015,
+      s:0.022+Math.random()*(big?0.05:0.03),phase:'fall'
+    });
   }
-  for(let i=0;i<(big?24:8);i++){
-    const a=Math.random()*Math.PI*2,r=Math.random()*35;
-    particles2D.push({
-      type:'shimmer',
-      x:x+Math.cos(a)*r,y:y+Math.sin(a)*r,
-      vx:(Math.random()-0.5)*2,vy:-1.2-Math.random()*3,
-      color:'#ffee44',
-      life:1.0,decay:0.01+Math.random()*0.009,
-      size:1.5+Math.random()*2.5,twinkle:Math.random()*Math.PI*2
+  // shimmer
+  for(let i=0;i<(big?25:8);i++){
+    const a=Math.random()*Math.PI*2,r=Math.random()*0.28;
+    particles3D.push({
+      x:pos.x+Math.cos(a)*r,y:pos.y+Math.sin(a)*r,z:pos.z+(Math.random()-0.5)*0.2,
+      vx:(Math.random()-0.5)*0.016,vy:0.01+Math.random()*0.028,vz:(Math.random()-0.5)*0.01,
+      c:[1,0.93,0.27],life:1,decay:0.009+Math.random()*0.008,s:0.018+Math.random()*0.022,phase:'fall'
     });
   }
   playWhistle();
@@ -687,157 +749,32 @@ function spawnBurst(x,y,big=false){
 
 function renderFX(){
   fx2d.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  // ロケット軌跡のみ2Dで描画
   fx2d.globalCompositeOperation='lighter';
-
   for(let i=particles2D.length-1;i>=0;i--){
     const p=particles2D[i];
-
-    if(p.type==='rocket'){
-      p.travelLeft--;
-      const prog=1-p.travelLeft/p.travelFrames;
-      const ease=prog*prog;
-      p.x=p.startX+(p.targetX-p.startX)*ease;
-      p.y=p.startY+(p.targetY-p.startY)*ease;
-      if(p.travelLeft<=0){particles2D.splice(i,1);continue;}
-      const tail=Math.min(1,p.travelLeft/10);
-      // コア
-      fx2d.globalAlpha=tail*0.95;
-      fx2d.fillStyle='#fffde0';
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.8,0,Math.PI*2);fx2d.fill();
-      // グロー
-      const gl=fx2d.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*7);
-      gl.addColorStop(0,'rgba(255,240,180,0.7)');
-      gl.addColorStop(0.3,'rgba(255,130,30,0.35)');
-      gl.addColorStop(1,'rgba(255,80,0,0)');
-      fx2d.globalAlpha=tail*0.7;
-      fx2d.fillStyle=gl;
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*7,0,Math.PI*2);fx2d.fill();
-      fx2d.globalAlpha=1;
-      continue;
-    }
-
-    if(p.type==='shimmer'){
-      p.x+=p.vx; p.y+=p.vy;
-      p.vy+=0.035; p.vx*=0.99;
-      p.twinkle+=0.32;
-      p.life-=p.decay;
-      if(p.life<=0){particles2D.splice(i,1);continue;}
-      const tw=0.45+0.55*Math.abs(Math.sin(p.twinkle));
-      // コア
-      fx2d.globalAlpha=p.life*tw*0.9;
-      fx2d.fillStyle=p.color;
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*tw,0,Math.PI*2);fx2d.fill();
-      // 輝きハロー
-      fx2d.globalAlpha=p.life*tw*0.25;
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*3.5,0,Math.PI*2);fx2d.fill();
-      fx2d.globalAlpha=1;
-      continue;
-    }
-
-    if(p.type==='outline'){
-      if(p.phase==='travel'){
-        p.travelLeft--;
-        const prog=1-p.travelLeft/p.travelFrames;
-        const ease=prog<0.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
-        p.x=p.startX+(p.targetX-p.startX)*ease;
-        p.y=p.startY+(p.targetY-p.startY)*ease;
-        if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='expand';}
-        fx2d.globalAlpha=0.55;
-        fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.7,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=0.15;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2,0,Math.PI*2);fx2d.fill();
-      } else if(p.phase==='expand'){
-        // ゆっくり外に広がる
-        p.x+=p.vx; p.y+=p.vy;
-        p.expandFrames--;
-        if(p.expandFrames<=0) p.phase='fall';
-        fx2d.globalAlpha=0.92;
-        fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=0.22;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
-      } else {
-        // 重力で落下
-        p.x+=p.vx; p.y+=p.vy;
-        p.vy+=0.022; p.vx*=0.99;
-        p.life-=p.decay;
-        if(p.life<=0){particles2D.splice(i,1);continue;}
-        fx2d.globalAlpha=p.life*0.88;
-        fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=p.life*0.22;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);fx2d.fill();
-      }
-      fx2d.globalAlpha=1;
-      continue;
-    }
-
-    // 標準バーストパーティクル
-    if(p.holdFrames>0){
-      p.holdFrames--;
-      p.x+=(Math.random()-0.5)*0.4;p.y+=(Math.random()-0.5)*0.4;
-      fx2d.globalAlpha=p.life*0.3;fx2d.fillStyle='#ffffff';
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
-    } else {
-      p.x+=p.vx;p.y+=p.vy;p.vy+=0.13;p.vx*=0.97;p.vy*=0.97;
-    }
-    p.life-=p.decay;
-    if(p.life<=0){particles2D.splice(i,1);continue;}
-    fx2d.globalAlpha=p.life*0.85;fx2d.fillStyle=p.color;
-    fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
-    fx2d.globalAlpha=p.life*0.2;
-    fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);fx2d.fill();
+    if(p.type!=='rocket'){particles2D.splice(i,1);continue;}
+    p.travelLeft--;
+    const prog=1-p.travelLeft/p.travelFrames;
+    p.x=p.startX+(p.targetX-p.startX)*(prog*prog);
+    p.y=p.startY+(p.targetY-p.startY)*(prog*prog);
+    if(p.travelLeft<=0){particles2D.splice(i,1);continue;}
+    const tail=Math.min(1,p.travelLeft/10);
+    fx2d.globalAlpha=tail*0.95;
+    fx2d.fillStyle='#fffde0';
+    fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.8,0,Math.PI*2);fx2d.fill();
+    const gl=fx2d.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*7);
+    gl.addColorStop(0,'rgba(255,240,180,0.7)');
+    gl.addColorStop(0.3,'rgba(255,130,30,0.35)');
+    gl.addColorStop(1,'rgba(255,80,0,0)');
+    fx2d.globalAlpha=tail*0.7;fx2d.fillStyle=gl;
+    fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*7,0,Math.PI*2);fx2d.fill();
     fx2d.globalAlpha=1;
   }
-
   fx2d.globalCompositeOperation='source-over';
   fx2d.globalAlpha=1;
-
-  // 画面外の作品へ方向矢印を描画
-  if(state.worksVisible && state.mode==='world') drawWorkArrows();
 }
 
-function drawWorkArrows(){
-  const W=fxCanvas.width, H=fxCanvas.height, M=58;
-  state.worldObjects.forEach(({mesh,work})=>{
-    if(!mesh.visible) return;
-    const v=mesh.position.clone().project(worldCamera);
-    const sx=(v.x+1)/2*W, sy=-(v.y-1)/2*H;
-    if(sx>M&&sx<W-M&&sy>M&&sy<H-M) return; // 画面内は不要
-    if(v.z>1) return; // カメラの後ろは無視
-
-    const cx=W/2, cy=H/2;
-    const dx=sx-cx, dy=sy-cy;
-    const angle=Math.atan2(dy,dx);
-    // 画面端の座標にクランプ
-    const hw=W/2-M, hh=H/2-M;
-    const s=Math.min(hw/(Math.abs(dx)||1), hh/(Math.abs(dy)||1));
-    const ax=cx+dx*Math.min(s,1), ay=cy+dy*Math.min(s,1);
-
-    fx2d.save();
-    fx2d.translate(ax, ay);
-    // 点滅パルス
-    const pulse=0.6+0.4*Math.sin(Date.now()*0.005);
-    // 矢印
-    fx2d.rotate(angle);
-    fx2d.globalAlpha=pulse*0.9;
-    fx2d.fillStyle='#ffcc44';
-    fx2d.beginPath();fx2d.moveTo(18,0);fx2d.lineTo(-8,9);fx2d.lineTo(-8,-9);fx2d.closePath();fx2d.fill();
-    // 外リング
-    fx2d.globalAlpha=pulse*0.35;
-    fx2d.strokeStyle='#ffcc44';fx2d.lineWidth=2;
-    fx2d.beginPath();fx2d.arc(0,0,14,0,Math.PI*2);fx2d.stroke();
-    // 名前ラベル
-    fx2d.rotate(-angle);
-    fx2d.globalAlpha=pulse*0.85;
-    fx2d.fillStyle='#fff';
-    fx2d.font='bold 10px sans-serif';
-    fx2d.textAlign='center';
-    fx2d.fillText(work.name||'🎆', 0, -20);
-    fx2d.restore();
-  });
-}
 
 // ── タップハンドラ ──
 const worldRaycaster=new THREE.Raycaster();
@@ -945,7 +882,7 @@ db.ref('works').on('value',snap=>{
   if(state.works.length===0){advanceLoading(state.loadingGoal);return;}
   els.workCount.textContent=state.works.length+' 作品';
   if(!state.currentWork)state.currentWork=state.works[0];
-  rebuildThumbs();rebuildWorldObjects();rebuildCameraOverlays();selectWork(state.currentWork.id);
+  rebuildWorldObjects();rebuildCameraOverlays();selectWork(state.currentWork.id);
   setStatus('✨ タップして作品を出そう！',true);
 });
 
@@ -971,7 +908,7 @@ function animate(){
     }
   });
   cameraWorks.forEach(({mesh})=>{if(mesh.visible)mesh.position.y=mesh.userData.baseY+Math.sin(time+mesh.userData.phase)*0.06;});
-  updateOverlayPositions();renderFX();
+  updateOverlayPositions();renderFX();update3DParticles();
   if(!els.worldStage.classList.contains('hidden'))worldRenderer.render(worldScene,worldCamera);
   if(!els.cameraStage.classList.contains('hidden'))cameraRenderer.render(cameraScene,camThreeCamera);
 }
@@ -985,6 +922,10 @@ window.addEventListener('resize',()=>{
   fxCanvas.width=window.innerWidth;fxCanvas.height=window.innerHeight;
   rebuildCameraOverlays();
 });
+// 初期表示はカメラ
+els.worldStage.classList.add('hidden');
+els.cameraStage.classList.remove('hidden');
+startCamera();
 updateHeader();advanceLoading(0);
 </script>
 </body>
