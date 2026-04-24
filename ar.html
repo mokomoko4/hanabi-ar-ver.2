@@ -113,7 +113,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v5.8</div>
+    <div class="ver">v5.9</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
   <div class="hint" id="hintText">📱 作品タップで輪郭が光ってから花火に変身！</div>
@@ -328,7 +328,7 @@ function launchOutlineFirework(edgePixels, cx, cy) {
   setTimeout(()=>{
     const TRAVEL_F = 22, SCALE = 2.8;
     edgePixels.forEach(p=>{
-      const tv = TRAVEL_F + Math.floor(Math.random()*12);
+      const tv = TRAVEL_F + Math.floor(Math.random()*3); // タイミングを揃える
       const dx=(p.px-cx)*SCALE, dy=(p.py-cy)*SCALE;
       const tx=cx+dx, ty=cy+dy;
       const dist=Math.sqrt(dx*dx+dy*dy)||1;
@@ -337,7 +337,7 @@ function launchOutlineFirework(edgePixels, cx, cy) {
         type:'outline', phase:'travel',
         x:cx, y:cy, startX:cx, startY:cy, targetX:tx, targetY:ty,
         travelFrames:tv, travelLeft:tv,
-        arriveGlow:22,
+        arriveGlow:18, holdFrames:55, // 約0.9秒間静止表示
         vx:(dx/dist)*SPREAD+(Math.random()-0.5)*0.9,
         vy:(dy/dist)*SPREAD*0.4-0.7+Math.random()*0.6,
         color:`rgb(${p.r},${p.g},${p.b})`,
@@ -585,9 +585,13 @@ function showWorks(){
   },i*200));
   state.worldObjects.forEach(({mesh},i)=>setTimeout(()=>{
     mesh.visible=true;
+    mesh.userData.discovered=false; // 発見フラグリセット
     const v=mesh.position.clone().project(worldCamera);
     const sx=(v.x+1)/2*window.innerWidth,sy=-(v.y-1)/2*window.innerHeight;
-    if(sx>0&&sx<window.innerWidth&&sy>0&&sy<window.innerHeight)spawnBurst(sx,sy,true);
+    if(sx>30&&sx<window.innerWidth-30&&sy>60&&sy<window.innerHeight-100){
+      mesh.userData.discovered=true;
+      spawnBurst(sx,sy,true);
+    }
   },i*200));
 }
 function hideWorks(){
@@ -596,7 +600,7 @@ function hideWorks(){
   document.querySelectorAll('.ar-work-overlay').forEach(el=>el.classList.remove('visible','popping'));
   document.querySelectorAll('.ar-work-name').forEach(el=>el.classList.remove('visible'));
   cameraWorks.forEach(({mesh})=>{mesh.visible=false;});
-  state.worldObjects.forEach(({mesh})=>{mesh.visible=false;});
+  state.worldObjects.forEach(({mesh})=>{mesh.visible=false;mesh.userData.discovered=false;});
 }
 
 // ── 花火エフェクト（音量30%） ──
@@ -737,34 +741,41 @@ function renderFX(){
         const ease=prog<0.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
         p.x=p.startX+(p.targetX-p.startX)*ease;
         p.y=p.startY+(p.targetY-p.startY)*ease;
-        if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='fall';}
+        if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='hold';}
         fx2d.globalAlpha=0.6;
         fx2d.fillStyle=p.color;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.65,0,Math.PI*2);fx2d.fill();
         fx2d.globalAlpha=0.2;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*1.8,0,Math.PI*2);fx2d.fill();
-      } else {
-        // 到着直後の輝きフラッシュ
+      } else if(p.phase==='hold'){
+        // 到着直後フラッシュ
         if(p.arriveGlow>0){
           p.arriveGlow--;
-          const gf=p.arriveGlow/22;
-          fx2d.globalAlpha=gf*0.85;
+          const gf=p.arriveGlow/18;
+          fx2d.globalAlpha=gf*0.9;
           fx2d.fillStyle='#ffffff';
-          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*4,0,Math.PI*2);fx2d.fill();
-          fx2d.globalAlpha=gf*0.45;
+          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*4.5,0,Math.PI*2);fx2d.fill();
+          fx2d.globalAlpha=gf*0.5;
           fx2d.fillStyle=p.color;
-          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*7,0,Math.PI*2);fx2d.fill();
+          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*8,0,Math.PI*2);fx2d.fill();
         }
+        // 静止・明るく表示（輪郭がはっきり見える時間）
+        fx2d.globalAlpha=0.95;
+        fx2d.fillStyle=p.color;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*1.15,0,Math.PI*2);fx2d.fill();
+        fx2d.globalAlpha=0.3;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*3.5,0,Math.PI*2);fx2d.fill();
+        p.holdFrames--;
+        if(p.holdFrames<=0) p.phase='fall';
+      } else {
         // ゆっくり落下
         p.x+=p.vx; p.y+=p.vy;
         p.vy+=0.016; p.vx*=0.99;
         p.life-=p.decay;
         if(p.life<=0){particles2D.splice(i,1);continue;}
-        // コアドット
         fx2d.globalAlpha=p.life*0.95;
         fx2d.fillStyle=p.color;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
-        // グローハロー
         fx2d.globalAlpha=p.life*0.28;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
       }
@@ -792,6 +803,50 @@ function renderFX(){
 
   fx2d.globalCompositeOperation='source-over';
   fx2d.globalAlpha=1;
+
+  // 画面外の作品へ方向矢印を描画
+  if(state.worksVisible && state.mode==='world') drawWorkArrows();
+}
+
+function drawWorkArrows(){
+  const W=fxCanvas.width, H=fxCanvas.height, M=58;
+  state.worldObjects.forEach(({mesh,work})=>{
+    if(!mesh.visible) return;
+    const v=mesh.position.clone().project(worldCamera);
+    const sx=(v.x+1)/2*W, sy=-(v.y-1)/2*H;
+    if(sx>M&&sx<W-M&&sy>M&&sy<H-M) return; // 画面内は不要
+    if(v.z>1) return; // カメラの後ろは無視
+
+    const cx=W/2, cy=H/2;
+    const dx=sx-cx, dy=sy-cy;
+    const angle=Math.atan2(dy,dx);
+    // 画面端の座標にクランプ
+    const hw=W/2-M, hh=H/2-M;
+    const s=Math.min(hw/(Math.abs(dx)||1), hh/(Math.abs(dy)||1));
+    const ax=cx+dx*Math.min(s,1), ay=cy+dy*Math.min(s,1);
+
+    fx2d.save();
+    fx2d.translate(ax, ay);
+    // 点滅パルス
+    const pulse=0.6+0.4*Math.sin(Date.now()*0.005);
+    // 矢印
+    fx2d.rotate(angle);
+    fx2d.globalAlpha=pulse*0.9;
+    fx2d.fillStyle='#ffcc44';
+    fx2d.beginPath();fx2d.moveTo(18,0);fx2d.lineTo(-8,9);fx2d.lineTo(-8,-9);fx2d.closePath();fx2d.fill();
+    // 外リング
+    fx2d.globalAlpha=pulse*0.35;
+    fx2d.strokeStyle='#ffcc44';fx2d.lineWidth=2;
+    fx2d.beginPath();fx2d.arc(0,0,14,0,Math.PI*2);fx2d.stroke();
+    // 名前ラベル
+    fx2d.rotate(-angle);
+    fx2d.globalAlpha=pulse*0.85;
+    fx2d.fillStyle='#fff';
+    fx2d.font='bold 10px sans-serif';
+    fx2d.textAlign='center';
+    fx2d.fillText(work.name||'🎆', 0, -20);
+    fx2d.restore();
+  });
 }
 
 // ── タップハンドラ ──
@@ -909,8 +964,21 @@ let time=0;
 function animate(){
   requestAnimationFrame(animate);time+=0.016;
   if(!state.useGyro){worldCamera.rotation.order='YXZ';worldCamera.rotation.y=state.yaw;worldCamera.rotation.x=state.pitch;}
-  state.worldObjects.forEach(({mesh})=>{
-    if(mesh.visible){mesh.position.y=mesh.userData.baseY+Math.sin(time*mesh.userData.floatSpeed+mesh.userData.floatPhase)*0.15;mesh.lookAt(0,0,0);}
+  state.worldObjects.forEach(({mesh,work})=>{
+    if(mesh.visible){
+      mesh.position.y=mesh.userData.baseY+Math.sin(time*mesh.userData.floatSpeed+mesh.userData.floatPhase)*0.15;
+      mesh.lookAt(0,0,0);
+      // 画面内に入ったら発見バースト
+      if(!mesh.userData.discovered){
+        const v=mesh.position.clone().project(worldCamera);
+        const sx=(v.x+1)/2*window.innerWidth, sy=-(v.y-1)/2*window.innerHeight;
+        if(sx>30&&sx<window.innerWidth-30&&sy>60&&sy<window.innerHeight-100){
+          mesh.userData.discovered=true;
+          setStatus('✨ '+(work.name||'作品')+'を発見！タップして花火に！',true);
+          spawnBurst(sx,sy,true);
+        }
+      }
+    }
   });
   cameraWorks.forEach(({mesh})=>{if(mesh.visible)mesh.position.y=mesh.userData.baseY+Math.sin(time+mesh.userData.phase)*0.06;});
   updateOverlayPositions();renderFX();
