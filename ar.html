@@ -113,7 +113,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v5.4</div>
+    <div class="ver">v5.5</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
   <div class="hint" id="hintText">📱 作品タップで輪郭が光ってから花火に変身！</div>
@@ -313,21 +313,22 @@ function launchOutlineFirework(edgePixels, cx, cy) {
 
   // 輪郭パーティクル：ロケット到着後にスポーン
   setTimeout(()=>{
-    const TRAVEL_F = 18, HOLD_F = 32;
+    const TRAVEL_F = 20, HOLD_F = 32, SCALE = 2.8;
     edgePixels.forEach(p=>{
       const tv = TRAVEL_F + Math.floor(Math.random()*10);
-      const dx=p.px-cx, dy=p.py-cy;
-      const angle = Math.atan2(dy,dx) + (Math.random()-0.5)*0.55;
+      const dx=(p.px-cx)*SCALE, dy=(p.py-cy)*SCALE;
+      const tx=cx+dx, ty=cy+dy;
+      const angle = Math.atan2(dy,dx) + (Math.random()-0.5)*0.5;
       particles2D.push({
         type:'outline', phase:'travel',
-        x:cx, y:cy, startX:cx, startY:cy, targetX:p.px, targetY:p.py,
+        x:cx, y:cy, startX:cx, startY:cy, targetX:tx, targetY:ty,
         travelFrames:tv, travelLeft:tv, holdFrames:HOLD_F,
         vx:0, vy:0,
         color:`rgb(${p.r},${p.g},${p.b})`,
         life:1.0, decay:0.003+Math.random()*0.003,
-        size:2.5+Math.random()*2,
+        size:3+Math.random()*2.5,
         explodeAngle:angle,
-        explodeSpeed:3+Math.random()*9,
+        explodeSpeed:4+Math.random()*11,
       });
     });
     playBoom(0.15);
@@ -377,7 +378,7 @@ function explodeWorldWork(mesh, work, sx, sy) {
 
   function doExplode(imgSource){
     try {
-      const edgePixels=detectEdgePixels(imgSource,110,110,sx,sy);
+      const edgePixels=detectEdgePixels(imgSource,120,120,sx,sy);
       launchOutlineFirework(edgePixels,sx,sy);
     } catch(e){ spawnBurst(sx,sy,true); }
     playRocketWhistle();
@@ -494,7 +495,9 @@ function rebuildCameraOverlays(){
       // タップで輪郭花火化！
       imgEl.addEventListener('click',e=>{
         e.stopPropagation();
-        explodeWorkToFirework(imgEl,nameEl,work,cx,cy);
+        const rect=imgEl.getBoundingClientRect();
+        const acx=rect.left+rect.width/2, acy=rect.top+rect.height/2;
+        explodeWorkToFirework(imgEl,nameEl,work,acx,acy);
       });
     } else {
       // PNG以外はPlaneメッシュで表示
