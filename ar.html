@@ -113,7 +113,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v5.9</div>
+    <div class="ver">v6.0</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
   <div class="hint" id="hintText">📱 作品タップで輪郭が光ってから花火に変身！</div>
@@ -337,12 +337,12 @@ function launchOutlineFirework(edgePixels, cx, cy) {
         type:'outline', phase:'travel',
         x:cx, y:cy, startX:cx, startY:cy, targetX:tx, targetY:ty,
         travelFrames:tv, travelLeft:tv,
-        arriveGlow:18, holdFrames:55, // 約0.9秒間静止表示
-        vx:(dx/dist)*SPREAD+(Math.random()-0.5)*0.9,
-        vy:(dy/dist)*SPREAD*0.4-0.7+Math.random()*0.6,
+        expandFrames:48,
+        vx:(dx/dist)*0.28+(Math.random()-0.5)*0.14,
+        vy:(dy/dist)*0.18-0.08+(Math.random()-0.5)*0.12,
         color:`rgb(${p.r},${p.g},${p.b})`,
         life:1.0, decay:0.003+Math.random()*0.002,
-        size:3.5+Math.random()*3,
+        size:1.8+Math.random()*1.4,
       });
     });
     playGrandBoom();
@@ -741,43 +741,33 @@ function renderFX(){
         const ease=prog<0.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
         p.x=p.startX+(p.targetX-p.startX)*ease;
         p.y=p.startY+(p.targetY-p.startY)*ease;
-        if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='hold';}
-        fx2d.globalAlpha=0.6;
+        if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='expand';}
+        fx2d.globalAlpha=0.55;
         fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.65,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=0.2;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*1.8,0,Math.PI*2);fx2d.fill();
-      } else if(p.phase==='hold'){
-        // 到着直後フラッシュ
-        if(p.arriveGlow>0){
-          p.arriveGlow--;
-          const gf=p.arriveGlow/18;
-          fx2d.globalAlpha=gf*0.9;
-          fx2d.fillStyle='#ffffff';
-          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*4.5,0,Math.PI*2);fx2d.fill();
-          fx2d.globalAlpha=gf*0.5;
-          fx2d.fillStyle=p.color;
-          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*8,0,Math.PI*2);fx2d.fill();
-        }
-        // 静止・明るく表示（輪郭がはっきり見える時間）
-        fx2d.globalAlpha=0.95;
-        fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*1.15,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=0.3;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*3.5,0,Math.PI*2);fx2d.fill();
-        p.holdFrames--;
-        if(p.holdFrames<=0) p.phase='fall';
-      } else {
-        // ゆっくり落下
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.7,0,Math.PI*2);fx2d.fill();
+        fx2d.globalAlpha=0.15;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2,0,Math.PI*2);fx2d.fill();
+      } else if(p.phase==='expand'){
+        // ゆっくり外に広がる
         p.x+=p.vx; p.y+=p.vy;
-        p.vy+=0.016; p.vx*=0.99;
-        p.life-=p.decay;
-        if(p.life<=0){particles2D.splice(i,1);continue;}
-        fx2d.globalAlpha=p.life*0.95;
+        p.expandFrames--;
+        if(p.expandFrames<=0) p.phase='fall';
+        fx2d.globalAlpha=0.92;
         fx2d.fillStyle=p.color;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
-        fx2d.globalAlpha=p.life*0.28;
+        fx2d.globalAlpha=0.22;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
+      } else {
+        // 重力で落下
+        p.x+=p.vx; p.y+=p.vy;
+        p.vy+=0.022; p.vx*=0.99;
+        p.life-=p.decay;
+        if(p.life<=0){particles2D.splice(i,1);continue;}
+        fx2d.globalAlpha=p.life*0.88;
+        fx2d.fillStyle=p.color;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
+        fx2d.globalAlpha=p.life*0.22;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);fx2d.fill();
       }
       fx2d.globalAlpha=1;
       continue;
