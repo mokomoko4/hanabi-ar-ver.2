@@ -113,7 +113,7 @@ body{background:radial-gradient(ellipse at 50% 40%,#180032 0%,#050014 75%);}
       <div class="sub" id="headerSub">スマホを動かして見渡してね</div>
     </div>
     <div class="badge" id="workCount">0 作品</div>
-    <div class="ver">v5.7</div>
+    <div class="ver">v5.8</div>
   </div>
   <div class="center-status good" id="statusText">✨ タップして作品を出そう！</div>
   <div class="hint" id="hintText">📱 作品タップで輪郭が光ってから花火に変身！</div>
@@ -303,36 +303,63 @@ function launchOutlineFirework(edgePixels, cx, cy) {
   const launchY = window.innerHeight + 10;
   const ROCKET_FRAMES = 32;
 
-  // ロケット粒子（下から打ち上げ）
+  // メインロケット
   particles2D.push({
     type:'rocket', phase:'travel',
     x:cx, y:launchY, startX:cx, startY:launchY, targetX:cx, targetY:cy,
     travelFrames:ROCKET_FRAMES, travelLeft:ROCKET_FRAMES,
-    size:5, color:'#ffffff', life:1.0, decay:0
+    size:6, color:'#ffffff', life:1.0, decay:0
   });
+
+  // サイドロケット × 2（少し遅れて）
+  setTimeout(()=>{
+    [-60, 60].forEach(dx=>{
+      particles2D.push({
+        type:'rocket', phase:'travel',
+        x:cx+dx, y:launchY, startX:cx+dx, startY:launchY,
+        targetX:cx+dx*0.18, targetY:cy+18,
+        travelFrames:28, travelLeft:28,
+        size:4, color:'#ffcc44', life:1.0, decay:0
+      });
+    });
+  }, 170);
 
   // 輪郭パーティクル：ロケット到着後にスポーン
   setTimeout(()=>{
-    const TRAVEL_F = 20, SCALE = 2.8;
+    const TRAVEL_F = 22, SCALE = 2.8;
     edgePixels.forEach(p=>{
-      const tv = TRAVEL_F + Math.floor(Math.random()*10);
+      const tv = TRAVEL_F + Math.floor(Math.random()*12);
       const dx=(p.px-cx)*SCALE, dy=(p.py-cy)*SCALE;
       const tx=cx+dx, ty=cy+dy;
       const dist=Math.sqrt(dx*dx+dy*dy)||1;
-      const SPREAD=1.3;
+      const SPREAD=1.4;
       particles2D.push({
         type:'outline', phase:'travel',
         x:cx, y:cy, startX:cx, startY:cy, targetX:tx, targetY:ty,
         travelFrames:tv, travelLeft:tv,
-        arriveGlow:14,
+        arriveGlow:22,
         vx:(dx/dist)*SPREAD+(Math.random()-0.5)*0.9,
-        vy:(dy/dist)*SPREAD*0.4-0.6+Math.random()*0.6,
+        vy:(dy/dist)*SPREAD*0.4-0.7+Math.random()*0.6,
         color:`rgb(${p.r},${p.g},${p.b})`,
-        life:1.0, decay:0.004+Math.random()*0.003,
-        size:3+Math.random()*2.5,
+        life:1.0, decay:0.003+Math.random()*0.002,
+        size:3.5+Math.random()*3,
       });
     });
-    playBoom(0.15);
+    playGrandBoom();
+
+    // 金のシマー（輪郭展開と同時に降り注ぐ）
+    for(let i=0;i<60;i++){
+      const a=Math.random()*Math.PI*2, r=15+Math.random()*130;
+      particles2D.push({
+        type:'shimmer',
+        x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r,
+        vx:(Math.random()-0.5)*1.4, vy:-1.2-Math.random()*3,
+        color:['#ffee44','#ffffff','#ffcc88','#ffffaa','#ffaa22'][Math.floor(Math.random()*5)],
+        life:1.0, decay:0.004+Math.random()*0.005,
+        size:1.5+Math.random()*3,
+        twinkle:Math.random()*Math.PI*2
+      });
+    }
   }, 530);
 }
 
@@ -595,6 +622,20 @@ function playBoom(vol=0.09){
     src.connect(g);g.connect(ctx.destination);src.start();
   }catch(e){}
 }
+function playGrandBoom(){
+  try{
+    const ctx=getAudio(),sr=ctx.sampleRate,n=Math.floor(sr*0.9);
+    const buf=ctx.createBuffer(1,n,sr),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(n*0.14));
+    const src=ctx.createBufferSource();src.buffer=buf;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.22,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.9);
+    src.connect(g);g.connect(ctx.destination);src.start();
+    setTimeout(()=>playBoom(0.08),220);
+    setTimeout(()=>playBoom(0.04),480);
+  }catch(e){}
+}
 function playWhistle(){
   try{
     const ctx=getAudio(),osc=ctx.createOscillator(),g=ctx.createGain();
@@ -618,36 +659,73 @@ function playRocketWhistle(){
   }catch(e){}
 }
 function spawnBurst(x,y,big=false){
-  const cols=['#ff4444','#ff8800','#ffee00','#44ff88','#4488ff','#cc44ff','#ff88cc','#44ffdd'];
-  const c=cols[Math.floor(Math.random()*cols.length)];
-  for(let i=0;i<(big?70:40);i++){
-    const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*(big?8:5);
-    particles2D.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color:c,life:1,decay:0.012+Math.random()*0.018,size:2+Math.random()*(big?4:2.5),holdFrames:0});
+  const cols=['#ff6644','#ff9900','#ffee22','#44ffaa','#44aaff','#dd44ff','#ff88dd','#44ffff','#ffffff','#ffcc44'];
+  const cnt=big?100:55;
+  for(let i=0;i<cnt;i++){
+    const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*(big?10:6);
+    const c=cols[Math.floor(Math.random()*cols.length)];
+    particles2D.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color:c,life:1,decay:0.009+Math.random()*0.015,size:2.5+Math.random()*(big?5:3),holdFrames:0});
+  }
+  for(let i=0;i<(big?24:8);i++){
+    const a=Math.random()*Math.PI*2,r=Math.random()*35;
+    particles2D.push({
+      type:'shimmer',
+      x:x+Math.cos(a)*r,y:y+Math.sin(a)*r,
+      vx:(Math.random()-0.5)*2,vy:-1.2-Math.random()*3,
+      color:'#ffee44',
+      life:1.0,decay:0.01+Math.random()*0.009,
+      size:1.5+Math.random()*2.5,twinkle:Math.random()*Math.PI*2
+    });
   }
   playWhistle();
-  setTimeout(()=>playBoom(big?0.12:0.075),420);
+  setTimeout(()=>playBoom(big?0.14:0.09),420);
 }
 
 function renderFX(){
   fx2d.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  fx2d.globalCompositeOperation='lighter';
+
   for(let i=particles2D.length-1;i>=0;i--){
     const p=particles2D[i];
 
     if(p.type==='rocket'){
       p.travelLeft--;
       const prog=1-p.travelLeft/p.travelFrames;
-      const ease=prog*prog; // ease-in（加速感）
+      const ease=prog*prog;
       p.x=p.startX+(p.targetX-p.startX)*ease;
       p.y=p.startY+(p.targetY-p.startY)*ease;
       if(p.travelLeft<=0){particles2D.splice(i,1);continue;}
       const tail=Math.min(1,p.travelLeft/10);
-      const gl=fx2d.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*6);
-      gl.addColorStop(0,'rgba(255,240,180,0.95)');
-      gl.addColorStop(0.35,'rgba(255,130,30,0.55)');
+      // コア
+      fx2d.globalAlpha=tail*0.95;
+      fx2d.fillStyle='#fffde0';
+      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.8,0,Math.PI*2);fx2d.fill();
+      // グロー
+      const gl=fx2d.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*7);
+      gl.addColorStop(0,'rgba(255,240,180,0.7)');
+      gl.addColorStop(0.3,'rgba(255,130,30,0.35)');
       gl.addColorStop(1,'rgba(255,80,0,0)');
-      fx2d.globalAlpha=tail*0.9;
+      fx2d.globalAlpha=tail*0.7;
       fx2d.fillStyle=gl;
-      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*6,0,Math.PI*2);fx2d.fill();
+      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*7,0,Math.PI*2);fx2d.fill();
+      fx2d.globalAlpha=1;
+      continue;
+    }
+
+    if(p.type==='shimmer'){
+      p.x+=p.vx; p.y+=p.vy;
+      p.vy+=0.035; p.vx*=0.99;
+      p.twinkle+=0.32;
+      p.life-=p.decay;
+      if(p.life<=0){particles2D.splice(i,1);continue;}
+      const tw=0.45+0.55*Math.abs(Math.sin(p.twinkle));
+      // コア
+      fx2d.globalAlpha=p.life*tw*0.9;
+      fx2d.fillStyle=p.color;
+      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*tw,0,Math.PI*2);fx2d.fill();
+      // 輝きハロー
+      fx2d.globalAlpha=p.life*tw*0.25;
+      fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*3.5,0,Math.PI*2);fx2d.fill();
       fx2d.globalAlpha=1;
       continue;
     }
@@ -660,45 +738,59 @@ function renderFX(){
         p.x=p.startX+(p.targetX-p.startX)*ease;
         p.y=p.startY+(p.targetY-p.startY)*ease;
         if(p.travelLeft<=0){p.x=p.targetX;p.y=p.targetY;p.phase='fall';}
-        fx2d.globalAlpha=0.55;
+        fx2d.globalAlpha=0.6;
         fx2d.fillStyle=p.color;
-        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.6,0,Math.PI*2);fx2d.fill();
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*0.65,0,Math.PI*2);fx2d.fill();
+        fx2d.globalAlpha=0.2;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*1.8,0,Math.PI*2);fx2d.fill();
       } else {
-        // 到着直後の短い輝き
+        // 到着直後の輝きフラッシュ
         if(p.arriveGlow>0){
           p.arriveGlow--;
-          fx2d.globalAlpha=(p.arriveGlow/12)*0.5;
+          const gf=p.arriveGlow/22;
+          fx2d.globalAlpha=gf*0.85;
           fx2d.fillStyle='#ffffff';
-          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.2,0,Math.PI*2);fx2d.fill();
+          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*4,0,Math.PI*2);fx2d.fill();
+          fx2d.globalAlpha=gf*0.45;
+          fx2d.fillStyle=p.color;
+          fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*7,0,Math.PI*2);fx2d.fill();
         }
         // ゆっくり落下
         p.x+=p.vx; p.y+=p.vy;
         p.vy+=0.016; p.vx*=0.99;
         p.life-=p.decay;
         if(p.life<=0){particles2D.splice(i,1);continue;}
-        fx2d.globalAlpha=p.life;
+        // コアドット
+        fx2d.globalAlpha=p.life*0.95;
         fx2d.fillStyle=p.color;
         fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
+        // グローハロー
+        fx2d.globalAlpha=p.life*0.28;
+        fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
       }
       fx2d.globalAlpha=1;
       continue;
     }
 
-    // 既存パーティクル（holdFrames方式）
+    // 標準バーストパーティクル
     if(p.holdFrames>0){
       p.holdFrames--;
       p.x+=(Math.random()-0.5)*0.4;p.y+=(Math.random()-0.5)*0.4;
-      fx2d.globalAlpha=p.life*0.35;fx2d.fillStyle='#ffffff';
+      fx2d.globalAlpha=p.life*0.3;fx2d.fillStyle='#ffffff';
       fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.8,0,Math.PI*2);fx2d.fill();
     } else {
       p.x+=p.vx;p.y+=p.vy;p.vy+=0.13;p.vx*=0.97;p.vy*=0.97;
     }
     p.life-=p.decay;
     if(p.life<=0){particles2D.splice(i,1);continue;}
-    fx2d.globalAlpha=p.life;fx2d.fillStyle=p.color;
+    fx2d.globalAlpha=p.life*0.85;fx2d.fillStyle=p.color;
     fx2d.beginPath();fx2d.arc(p.x,p.y,p.size,0,Math.PI*2);fx2d.fill();
+    fx2d.globalAlpha=p.life*0.2;
+    fx2d.beginPath();fx2d.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);fx2d.fill();
     fx2d.globalAlpha=1;
   }
+
+  fx2d.globalCompositeOperation='source-over';
   fx2d.globalAlpha=1;
 }
 
