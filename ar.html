@@ -184,7 +184,10 @@ const mat = new THREE.ShaderMaterial({
   depthTest:false
 });
 geo.setDrawRange(0,0);
-scene.add(new THREE.Points(geo, mat));
+const _pts = new THREE.Points(geo, mat);
+_pts.frustumCulled = false;  // バウンディング球が未計算でもカリングしない
+_pts.renderOrder   = 999;    // 他オブジェクトより後に描画
+scene.add(_pts);
 
 // ══════════════════════════════════════════════
 // パーティクル状態配列
@@ -481,11 +484,21 @@ function boom(vol=0.30){
 // メインループ
 // ══════════════════════════════════════════════
 
+// デバッグカウンター
+const _dbgDiv = document.createElement('div');
+_dbgDiv.style.cssText =
+  'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:99999;' +
+  'color:lime;font:12px monospace;background:rgba(0,0,0,.6);padding:3px 8px;' +
+  'border-radius:6px;pointer-events:none;';
+document.body.appendChild(_dbgDiv);
+
 function tick(){
   updateCamera();
   updateRockets();
   updateArrowIndicator();
   updateParticles();
+  _dbgDiv.textContent =
+    `r:${rockets.length} ps:${ps.length} draw:${geo.drawRange.count}`;
 }
 
 function animate(){
