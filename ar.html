@@ -31,13 +31,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 .ud-label{font:11px/1 'Hiragino Kaku Gothic ProN',sans-serif;
           color:rgba(255,220,80,.9);letter-spacing:.12em;
           text-shadow:0 2px 12px rgba(255,120,0,.9);}
-/* AR マーカーパネル */
-#markerPanel{position:fixed;top:16px;left:16px;z-index:3;pointer-events:none;
-             background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);
-             border-radius:10px;padding:8px 14px;
-             color:rgba(255,255,255,.8);
-             font:11px/1.7 'Hiragino Kaku Gothic ProN',sans-serif;
-             display:none;}
 #xrbtn{position:fixed;top:18px;right:16px;z-index:3;pointer-events:auto;
        padding:8px 18px;border:1px solid rgba(255,255,255,.3);
        background:rgba(0,0,0,.45);border-radius:20px;color:#fff;
@@ -54,22 +47,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 </head>
 <body>
 
-<!-- カメラ映像（AR.js 起動前/非対応時のベース） -->
 <video id="vid" autoplay playsinline muted></video>
 <canvas id="cv"></canvas>
-<div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
+<div id="ui"><span class="hint">タップで花火打ち上げ 🎆</span></div>
 
 <div id="launchDir">
   <div class="ud-arrow">↑</div>
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div id="markerPanel">
-  <div id="markerStatus">📷 マーカー: 未検出</div>
-  <div style="font-size:10px;opacity:.55;margin-top:1px">Hiro マーカーをかざしてください</div>
-</div>
-
-<div class="ver">v7.1</div>
+<div class="ver">v7.2</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -88,111 +75,28 @@ const cv = document.getElementById('cv');
 const ren = new THREE.WebGLRenderer({canvas:cv, alpha:true, antialias:true});
 ren.setPixelRatio(Math.min(devicePixelRatio, 2.5));
 ren.setSize(innerWidth, innerHeight);
-ren.setClearColor(0, 0);
+ren.setClearColor(0x000000, 0); // 完全透明
 
 const scene = new THREE.Scene();
 const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 500);
 cam.position.set(0, 0, 0);
 
 // ══════════════════════════════════════════════
-// カメラ映像（即時起動 — AR.js とは独立）
+// カメラ映像
 // ══════════════════════════════════════════════
 
 const vid = document.getElementById('vid');
-navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
-  .then(s=>{ vid.srcObject = s; })
-  .catch(()=>{ vid.style.display='none'; document.body.style.background='#04001a'; });
-
-// ══════════════════════════════════════════════
-// AR.js マーカー追跡（非同期ロード・完全オプション）
-// ══════════════════════════════════════════════
-
-let arSource=null, arContext=null, markerGroup=null, lastMarkerLaunch=0;
-const _mPos = new THREE.Vector3();
-
-function initAR(){
-  if(typeof THREEx === 'undefined') return;
-  try{
-    arSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
-    arSource.init(function onReady(){
-      // AR.js が独自カメラを持つのでマニュアル video を隠す
-      vid.style.display = 'none';
-      document.getElementById('markerPanel').style.display = 'block';
-      document.getElementById('hintTxt').textContent =
-        'Hiro マーカーをかざすか、タップで打ち上げ 🎆';
-      _onARResize();
-    }, function onError(e){
-      console.warn('AR source error:', e);
-      arSource = null;
-      vid.style.display = ''; // フォールバック
-    });
-
-    arContext = new THREEx.ArToolkitContext({
-      cameraParametersUrl:
-        'https://raw.githack.com/AR-js-org/AR.js/3.4.5/data/data/camera_para.dat',
-      detectionMode: 'mono',
-    });
-    arContext.init(function onCompleted(){
-      cam.projectionMatrix.copy(arContext.getProjectionMatrix());
-    });
-
-    markerGroup = new THREE.Group();
-    scene.add(markerGroup);
-
-    new THREEx.ArMarkerControls(arContext, markerGroup, {
-      type: 'pattern',
-      patternUrl:
-        'https://raw.githack.com/AR-js-org/AR.js/3.4.5/data/data/patt.hiro',
-    });
-  }catch(e){
-    console.warn('AR.js 初期化失敗:', e);
-    arSource = null;
-    vid.style.display = '';
-  }
-}
-
-// AR.js を非同期でロード（メインの描画を一切ブロックしない）
-(function loadARjs(){
-  const s = document.createElement('script');
-  s.src = 'https://raw.githack.com/AR-js-org/AR.js/3.4.5/three.js/build/ar-threex.js';
-  s.onload  = initAR;
-  s.onerror = ()=> console.log('AR.js 未ロード — タップモードで動作');
-  document.head.appendChild(s);
-})();
-
-function _onARResize(){
-  if(!arSource || !arSource.ready) return;
-  arSource.onResizeElement();
-  arSource.copyElementSizeTo(ren.domElement);
-  if(arContext && arContext.arController)
-    arSource.copyElementSizeTo(arContext.arController.canvas);
-}
-
-// マーカー検出時の自動打ち上げ
-function updateMarkerLaunch(){
-  if(!markerGroup) return;
-  const vis = markerGroup.visible;
-  const statusEl = document.getElementById('markerStatus');
-  if(!vis){
-    if(statusEl) statusEl.textContent = '📷 マーカー: 未検出';
-    return;
-  }
-  if(statusEl) statusEl.innerHTML = '✅ マーカー: 検出中';
-
-  if(Date.now() - lastMarkerLaunch < 3200) return;
-  lastMarkerLaunch = Date.now();
-
-  // マーカーのスクリーン位置 → 標準ワールド座標へ変換
-  markerGroup.getWorldPosition(_mPos);
-  const sp = _mPos.clone().project(cam);
-  const sx = ( sp.x * 0.5 + 0.5) * innerWidth;
-  const sy = (-sp.y * 0.5 + 0.5) * innerHeight;
-  const wz = -11 - Math.random()*3;
-  const wp = tapToWorld(sx, sy, wz);
-  const wy1 = Math.max(1.5, Math.min(8.0, wp.y + 3 + Math.random()*2));
-  const pal = PALETTES[Math.floor(Math.random()*PALETTES.length)];
-  launch(wp.x + (Math.random()-.5)*.5, wy1, wz, pal);
-}
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: {ideal: 'environment'}, width: {ideal: 1280} }
+})
+.then(s => {
+  vid.srcObject = s;
+  vid.play().catch(()=>{});
+})
+.catch(() => {
+  vid.style.display = 'none';
+  document.body.style.background = '#04001a';
+});
 
 // ══════════════════════════════════════════════
 // 打ち上げ方向インジケーター
@@ -443,12 +347,6 @@ const R = THREE.MathUtils.degToRad;
 
 function updateCamera(){
   if(xrActive) return;
-  if(arSource && arSource.ready){
-    // AR.js がポーズ管理 → カメラをアイデンティティに保つ
-    cam.position.set(0,0,0);
-    cam.rotation.set(0,0,0);
-    return;
-  }
   if(!gyroOn){
     cam.rotation.order = 'YXZ';
     cam.rotation.set(-0.28, 0, 0);
@@ -560,10 +458,6 @@ function boom(vol=0.30){
 // ══════════════════════════════════════════════
 
 function tick(){
-  if(arSource && arSource.ready){
-    try{ arContext.update(arSource.domElement); }catch(_){}
-    updateMarkerLaunch();
-  }
   updateCamera();
   updateRockets();
   updateArrowIndicator();
@@ -582,7 +476,6 @@ window.addEventListener('resize',()=>{
   cam.aspect = innerWidth/innerHeight;
   cam.updateProjectionMatrix();
   ren.setSize(innerWidth, innerHeight);
-  _onARResize();
 });
 
 checkPerm();
