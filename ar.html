@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>花火AR</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/three.js/build/ar-threex.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;}
-#vid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;}
 #cv{position:fixed;inset:0;width:100%;height:100%;z-index:1;touch-action:none;}
 #ui{position:fixed;bottom:0;left:0;right:0;padding-bottom:46px;z-index:2;
     pointer-events:none;display:flex;justify-content:center;}
@@ -17,6 +17,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
       text-shadow:0 2px 14px rgba(0,0,0,.95);
       animation:hp 3s ease-in-out infinite;}
 @keyframes hp{0%,100%{opacity:.4}55%{opacity:.95}}
+/* バージョン */
+.ver{position:fixed;bottom:8px;right:12px;z-index:4;
+     font:10px/1 monospace;color:rgba(255,255,255,.28);pointer-events:none;}
+/* 打ち上げ方向インジケーター */
+#launchDir{position:fixed;top:0;left:0;right:0;z-index:3;pointer-events:none;
+           display:flex;flex-direction:column;align-items:center;padding-top:22px;gap:4px;
+           opacity:0;transition:opacity .25s;}
+#launchDir.show{opacity:1;}
+.ud-arrow{font:40px/1 sans-serif;color:#ffdd00;
+          text-shadow:0 0 20px #ff8800,0 0 40px #ff4400;
+          animation:udbounce .55s ease-in-out infinite;}
+@keyframes udbounce{0%,100%{transform:translateY(4px);}50%{transform:translateY(-6px);}}
+.ud-label{font:11px/1 'Hiragino Kaku Gothic ProN',sans-serif;
+          color:rgba(255,220,80,.9);letter-spacing:.12em;
+          text-shadow:0 2px 12px rgba(255,120,0,.9);}
+/* マーカー情報パネル */
+#markerPanel{position:fixed;top:16px;left:16px;z-index:3;pointer-events:none;
+             background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);
+             border-radius:10px;padding:8px 14px;
+             color:rgba(255,255,255,.8);
+             font:11px/1.7 'Hiragino Kaku Gothic ProN',sans-serif;
+             display:none;}
+#markerPanel b{color:#ffdd44;}
 #xrbtn{position:fixed;top:18px;right:16px;z-index:3;pointer-events:auto;
        padding:8px 18px;border:1px solid rgba(255,255,255,.3);
        background:rgba(0,0,0,.45);border-radius:20px;color:#fff;
@@ -33,9 +56,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 </head>
 <body>
 
-<video id="vid" autoplay playsinline muted></video>
 <canvas id="cv"></canvas>
-<div id="ui"><span class="hint">タップで花火打ち上げ 🎆</span></div>
+<div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
+
+<!-- 打ち上げ方向インジケーター（ロケット発射時に表示） -->
+<div id="launchDir">
+  <div class="ud-arrow">↑</div>
+  <div class="ud-label">打ち上げ中</div>
+</div>
+
+<!-- AR マーカーパネル -->
+<div id="markerPanel">
+  <div id="markerStatus">📷 マーカー: 未検出</div>
+  <div style="font-size:10px;opacity:.55;margin-top:1px">Hiro マーカーをかざしてください</div>
+</div>
+
+<div class="ver">v7.1</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -61,14 +97,140 @@ const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 500);
 cam.position.set(0, 0, 0);
 
 // ══════════════════════════════════════════════
+// AR.js マーカー追跡
+// ══════════════════════════════════════════════
+
+const arAvail = typeof THREEx !== 'undefined';
+let arSource = null, arContext = null, markerGroup = null;
+let lastMarkerLaunch = 0;
+const _mPos = new THREE.Vector3();
+
+if(arAvail){
+  arSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
+  arSource.init(function onReady(){
+    document.getElementById('markerPanel').style.display = 'block';
+    document.getElementById('hintTxt').textContent =
+      'Hiro マーカーをかざすか、タップで花火打ち上げ 🎆';
+    _onARResize();
+  }, function onError(e){ console.warn('AR source error', e); });
+
+  arContext = new THREEx.ArToolkitContext({
+    cameraParametersUrl:
+      'https://raw.githack.com/AR-js-org/AR.js/3.4.5/data/data/camera_para.dat',
+    detectionMode: 'mono',
+  });
+  arContext.init(function onCompleted(){
+    cam.projectionMatrix.copy(arContext.getProjectionMatrix());
+  });
+
+  markerGroup = new THREE.Group();
+  scene.add(markerGroup);
+
+  new THREEx.ArMarkerControls(arContext, markerGroup, {
+    type: 'pattern',
+    patternUrl:
+      'https://raw.githack.com/AR-js-org/AR.js/3.4.5/data/data/patt.hiro',
+  });
+} else {
+  // AR.js 未ロード時はカメラを自前で取得
+  const vid = document.createElement('video');
+  Object.assign(vid, {autoplay:true, playsInline:true, muted:true});
+  vid.setAttribute('playsinline','');
+  vid.style.cssText =
+    'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;';
+  document.body.prepend(vid);
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(s=>{ vid.srcObject = s; })
+    .catch(()=>{ document.body.style.background = '#04001a'; });
+}
+
+function _onARResize(){
+  if(!arSource || !arSource.ready) return;
+  arSource.onResizeElement();
+  arSource.copyElementSizeTo(ren.domElement);
+  if(arContext && arContext.arController)
+    arSource.copyElementSizeTo(arContext.arController.canvas);
+}
+
+// マーカー検出時の自動打ち上げ
+function updateMarkerLaunch(){
+  if(!markerGroup) return;
+  const vis = markerGroup.visible;
+  const statusEl = document.getElementById('markerStatus');
+
+  if(!vis){
+    if(statusEl) statusEl.textContent = '📷 マーカー: 未検出';
+    return;
+  }
+  if(statusEl) statusEl.innerHTML = '✅ マーカー: <b>検出中</b>';
+
+  if(Date.now() - lastMarkerLaunch < 3200) return;
+  lastMarkerLaunch = Date.now();
+
+  // マーカーのスクリーン位置を求め、標準のワールド座標に変換
+  markerGroup.getWorldPosition(_mPos);
+  const sp = _mPos.clone().project(cam);
+  const sx = (sp.x *  0.5 + 0.5) * innerWidth;
+  const sy = (sp.y * -0.5 + 0.5) * innerHeight;
+  const wz = -11 - Math.random()*3;
+  const wp = tapToWorld(sx, sy, wz);
+  const wy1 = Math.max(1.5, Math.min(8.0, wp.y + 3 + Math.random()*2));
+  const pal = PALETTES[Math.floor(Math.random()*PALETTES.length)];
+  launch(wp.x + (Math.random()-.5)*.5, wy1, wz, pal);
+}
+
+// ══════════════════════════════════════════════
+// 打ち上げ方向インジケーター（3D + CSS）
+// ══════════════════════════════════════════════
+
+const arrowHelper = new THREE.ArrowHelper(
+  new THREE.Vector3(0,1,0),
+  new THREE.Vector3(0,0,0),
+  8, 0xffcc00, 1.0, 0.5
+);
+arrowHelper.line.material.blending    = THREE.AdditiveBlending;
+arrowHelper.line.material.transparent = true;
+arrowHelper.cone.material.blending    = THREE.AdditiveBlending;
+arrowHelper.cone.material.transparent = true;
+arrowHelper.visible = false;
+scene.add(arrowHelper);
+
+let arrowFrames = 0;
+const launchDirEl = document.getElementById('launchDir');
+
+function showLaunchIndicator(x, y0, z, y1){
+  const len = Math.max(1.5, y1 - y0);
+  arrowHelper.position.set(x, y0, z);
+  arrowHelper.setLength(len, Math.min(1.2, len*0.15), Math.min(0.55, len*0.07));
+  arrowHelper.visible = true;
+  arrowHelper.line.material.opacity = 0.85;
+  arrowHelper.cone.material.opacity = 0.85;
+  arrowFrames = 100;
+  launchDirEl.classList.add('show');
+}
+
+function updateArrowIndicator(){
+  if(arrowFrames <= 0){
+    arrowHelper.visible = false;
+    launchDirEl.classList.remove('show');
+    return;
+  }
+  arrowFrames--;
+  const t = arrowFrames / 100;
+  arrowHelper.line.material.opacity = 0.85 * t;
+  arrowHelper.cone.material.opacity = 0.85 * t;
+  if(arrowFrames === 0) launchDirEl.classList.remove('show');
+}
+
+// ══════════════════════════════════════════════
 // パーティクル GPU バッファ
 // ══════════════════════════════════════════════
 
 const MAX = 6000;
-const bP = new Float32Array(MAX*3); // position
-const bC = new Float32Array(MAX*3); // color
-const bA = new Float32Array(MAX);   // alpha
-const bS = new Float32Array(MAX);   // size
+const bP = new Float32Array(MAX*3);
+const bC = new Float32Array(MAX*3);
+const bA = new Float32Array(MAX);
+const bS = new Float32Array(MAX);
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -106,7 +268,6 @@ scene.add(new THREE.Points(geo, mat));
 // ══════════════════════════════════════════════
 
 const ps = [];
-
 function addP(x,y,z, vx,vy,vz, r,g,b, decay, s){
   ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s});
 }
@@ -116,10 +277,8 @@ function updateParticles(){
   for(let i=ps.length-1; i>=0; i--){
     const p = ps[i];
     p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
-    p.vy -= 0.0030;      // 重力
-    p.vx *= 0.983;
-    p.vy *= 0.983;
-    p.vz *= 0.968;       // Z 方向は強めに減衰（カメラ超えを防ぐ）
+    p.vy -= 0.0030;
+    p.vx *= 0.983; p.vy *= 0.983; p.vz *= 0.968;
     p.a  -= p.decay;
     if(p.a <= 0){ ps.splice(i,1); continue; }
     if(cnt >= MAX) continue;
@@ -137,32 +296,28 @@ function updateParticles(){
 }
 
 // ══════════════════════════════════════════════
-// 花火カラーパレット
+// カラーパレット
 // ══════════════════════════════════════════════
 
 const PALETTES = [
-  [[1,.22,.05],[1,.55,.1],[1,.9,.2],[1,1,1]],     // 赤橙金
-  [[.12,.38,1],[.45,.72,1],[.8,.9,1],[1,1,1]],    // 青白
-  [[.05,1,.28],[.55,1,.12],[1,1,.28],[1,1,1]],    // 緑黄
-  [[.88,.08,1],[1,.38,.9],[1,.72,1],[1,1,1]],     // 紫ピンク
-  [[1,.80,.05],[1,.92,.42],[1,1,.88],[1,1,1]],    // ゴールド
-  [[1,.15,.15],[.1,.88,1],[1,1,.32],[1,1,1]],     // 三色
+  [[1,.22,.05],[1,.55,.1],[1,.9,.2],[1,1,1]],
+  [[.12,.38,1],[.45,.72,1],[.8,.9,1],[1,1,1]],
+  [[.05,1,.28],[.55,1,.12],[1,1,.28],[1,1,1]],
+  [[.88,.08,1],[1,.38,.9],[1,.72,1],[1,1,1]],
+  [[1,.80,.05],[1,.92,.42],[1,1,.88],[1,1,1]],
+  [[1,.15,.15],[.1,.88,1],[1,1,.32],[1,1,1]],
 ];
 
 // ══════════════════════════════════════════════
-// 爆発パーティクル生成
+// 爆発
 // ══════════════════════════════════════════════
 
 function burst(x, y, z, pal){
-  // ── メイン火花（球状放射）──
   for(let i=0; i<200; i++){
     const theta = Math.random()*Math.PI*2;
-    const phi   = Math.acos(2*Math.random()-1);   // 均一球面分布
+    const phi   = Math.acos(2*Math.random()-1);
     const sp    = 0.038 + Math.random()*0.085;
-
-    // 15% の火花をカメラ方向（+Z）に余分に飛ばす
     const zFwd  = (Math.random() < 0.15) ? 0.055 + Math.random()*0.045 : 0;
-
     const c = pal[Math.floor(Math.random()*pal.length)];
     addP(x,y,z,
       Math.sin(phi)*Math.cos(theta)*sp,
@@ -172,8 +327,6 @@ function burst(x, y, z, pal){
       0.004+Math.random()*0.006,
       0.26+Math.random()*0.32);
   }
-
-  // ── キラキラ（ゆっくり落ちる長寿命）──
   for(let i=0; i<30; i++){
     const c = pal[Math.floor(Math.random()*pal.length)];
     const a = Math.random()*Math.PI*2;
@@ -184,16 +337,11 @@ function burst(x, y, z, pal){
       0.003+Math.random()*0.003,
       0.45+Math.random()*0.40);
   }
-
-  // ── 中心フラッシュ（即消え）──
   for(let i=0; i<14; i++){
     addP(x,y,z,
-      (Math.random()-.5)*.025, (Math.random()-.5)*.025, (Math.random()-.5)*.025,
-      1,1,1,
-      0.065+Math.random()*0.055,
-      0.55+Math.random()*0.60);
+      (Math.random()-.5)*.025,(Math.random()-.5)*.025,(Math.random()-.5)*.025,
+      1,1,1, 0.065+Math.random()*0.055, 0.55+Math.random()*0.60);
   }
-
   setTimeout(()=>boom(), 55);
 }
 
@@ -204,18 +352,19 @@ function burst(x, y, z, pal){
 const rockets = [];
 
 function launch(wx, wy1, wz, pal){
-  rockets.push({ x:wx, z:wz, y0:-5.5, y1:wy1, t:0, pal, trail:0 });
+  const y0 = -5.5;
+  rockets.push({ x:wx, z:wz, y0, y1:wy1, t:0, pal, trail:0 });
+  showLaunchIndicator(wx, y0, wz, wy1);
   whistle();
 }
 
 function updateRockets(){
   for(let i=rockets.length-1; i>=0; i--){
     const r = rockets[i];
-    r.t = Math.min(1, r.t+0.017);                 // ~59フレームで頂点
-    const e = r.t<.5 ? 2*r.t*r.t : 1-(-2*r.t+2)**2/2; // easeInOut
+    r.t = Math.min(1, r.t+0.017);
+    const e = r.t<.5 ? 2*r.t*r.t : 1-(-2*r.t+2)**2/2;
     const ry = r.y0 + (r.y1-r.y0)*e;
 
-    // トレイル（2フレームごとに3粒）
     r.trail++;
     if(r.trail % 2 === 0){
       for(let k=0; k<3; k++){
@@ -230,8 +379,7 @@ function updateRockets(){
           0.048+Math.random()*0.05,
           0.18+Math.random()*0.14);
       }
-      // 先端の白い光点
-      addP(r.x,ry,r.z, 0,0,0, 1,1,1, 0.55, 0.42);
+      addP(r.x, ry, r.z, 0,0,0, 1,1,1, 0.55, 0.42);
     }
 
     if(r.t >= 1){
@@ -251,10 +399,7 @@ function tapToWorld(sx, sy, wz){
   const v = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(cam);
   v.sub(cam.position).normalize();
   const t = Math.abs(v.z) > 1e-4 ? (wz-cam.position.z)/v.z : 10;
-  return {
-    x: cam.position.x + v.x*t,
-    y: cam.position.y + v.y*t,
-  };
+  return { x: cam.position.x + v.x*t, y: cam.position.y + v.y*t };
 }
 
 function onTap(e){
@@ -262,7 +407,7 @@ function onTap(e){
   const touch = e.changedTouches ? e.changedTouches[0] : e;
   const wz  = -11 - Math.random()*3;
   const wp  = tapToWorld(touch.clientX, touch.clientY, wz);
-  const wy1 = Math.max(1.5, Math.min(8.0, wp.y)); // 爆発高さをクランプ
+  const wy1 = Math.max(1.5, Math.min(8.0, wp.y));
   const pal = PALETTES[Math.floor(Math.random()*PALETTES.length)];
   launch(wp.x + (Math.random()-.5)*.6, wy1, wz, pal);
 }
@@ -271,7 +416,7 @@ cv.addEventListener('touchstart', onTap, {passive:true});
 cv.addEventListener('click', onTap);
 
 // ══════════════════════════════════════════════
-// ジャイロ（device orientation）
+// ジャイロ
 // ══════════════════════════════════════════════
 
 let gyroOn = false;
@@ -284,9 +429,15 @@ const R = THREE.MathUtils.degToRad;
 
 function updateCamera(){
   if(xrActive) return;
+  // AR.js 使用中はカメラをアイデンティティに保つ（マーカー追跡が pose を管理）
+  if(arAvail && arSource && arSource.ready){
+    cam.position.set(0,0,0);
+    cam.rotation.set(0,0,0);
+    return;
+  }
   if(!gyroOn){
     cam.rotation.order = 'YXZ';
-    cam.rotation.set(-0.28, 0, 0); // 上向き固定（ジャイロなし）
+    cam.rotation.set(-0.28, 0, 0);
     return;
   }
   const heading = R(360 - gA);
@@ -324,20 +475,10 @@ function grantPerm(){
 }
 
 // ══════════════════════════════════════════════
-// カメラストリーム
-// ══════════════════════════════════════════════
-
-const vid = document.getElementById('vid');
-navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
-  .then(s=>{ vid.srcObject=s; })
-  .catch(()=>{ vid.style.display='none'; document.body.style.background='#04001a'; });
-
-// ══════════════════════════════════════════════
-// WebXR（オプション）
+// WebXR
 // ══════════════════════════════════════════════
 
 let xrActive = false;
-
 (async()=>{
   if(!navigator.xr) return;
   try{
@@ -355,11 +496,9 @@ async function enterXR(){
     });
     ren.xr.enabled = true; xrActive = true;
     await ren.xr.setSession(s);
-    vid.style.display = 'none';
     ren.setAnimationLoop(tick);
     s.addEventListener('end',()=>{
       ren.xr.enabled = false; xrActive = false;
-      vid.style.display = '';
       ren.setAnimationLoop(null);
       requestAnimationFrame(loop);
     });
@@ -371,13 +510,10 @@ async function enterXR(){
 // ══════════════════════════════════════════════
 
 let audioCtx = null;
-
 function getAu(){
   if(!audioCtx) audioCtx = new(window.AudioContext||window.webkitAudioContext)();
-  audioCtx.resume();
-  return audioCtx;
+  audioCtx.resume(); return audioCtx;
 }
-
 function whistle(){
   try{
     const ctx=getAu(), o=ctx.createOscillator(), g=ctx.createGain();
@@ -390,7 +526,6 @@ function whistle(){
     o.start(); o.stop(ctx.currentTime+1.15);
   }catch(_){}
 }
-
 function boom(vol=0.30){
   try{
     const ctx=getAu(), sr=ctx.sampleRate;
@@ -402,7 +537,7 @@ function boom(vol=0.30){
     g.gain.setValueAtTime(vol, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime+.82);
     src.connect(g); g.connect(ctx.destination); src.start();
-    if(vol > .10) setTimeout(()=>boom(vol*.28), 290); // 残響
+    if(vol > .10) setTimeout(()=>boom(vol*.28), 290);
   }catch(_){}
 }
 
@@ -411,8 +546,13 @@ function boom(vol=0.30){
 // ══════════════════════════════════════════════
 
 function tick(){
+  if(arAvail && arSource && arSource.ready){
+    arContext.update(arSource.domElement);
+    updateMarkerLaunch();
+  }
   updateCamera();
   updateRockets();
+  updateArrowIndicator();
   updateParticles();
   ren.render(scene, cam);
 }
@@ -428,6 +568,7 @@ window.addEventListener('resize',()=>{
   cam.aspect = innerWidth/innerHeight;
   cam.updateProjectionMatrix();
   ren.setSize(innerWidth, innerHeight);
+  _onARResize();
 });
 
 // ══════════════════════════════════════════════
@@ -437,15 +578,11 @@ window.addEventListener('resize',()=>{
 checkPerm();
 
 function autoLaunch(x, wy1, wz, palIdx, delay){
-  setTimeout(()=>{
-    launch(x, wy1, wz, PALETTES[palIdx]);
-    whistle();
-  }, delay);
+  setTimeout(()=>{ launch(x, wy1, wz, PALETTES[palIdx]); }, delay);
 }
-
-autoLaunch(-1.4,  4.8, -12, 0, 1100);
-autoLaunch( 1.6,  5.2, -11, 1, 2600);
-autoLaunch(-0.3,  6.0, -13, 4, 4300);
+autoLaunch(-1.4, 4.8, -12, 0, 1100);
+autoLaunch( 1.6, 5.2, -11, 1, 2600);
+autoLaunch(-0.3, 6.0, -13, 4, 4300);
 </script>
 </body>
 </html>
