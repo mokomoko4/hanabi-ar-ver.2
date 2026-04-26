@@ -64,7 +64,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v9.7</div>
+<div class="ver">v9.8</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -571,13 +571,18 @@ function makeImageData(url){
         }
         const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
         for(let y=0;y<lpSZ;y+=2) for(let x=0;x<lpSZ;x+=2){
-          if(Math.random()>0.60) continue;
+          const nx=(x/lpSZ)*2-1, ny=(y/lpSZ)*2-1;
+          const dist=Math.sqrt(nx*nx+ny*ny);
+          if(dist>1.0) continue; // 円の外は除外
+          // smoothstep(1.0→0, 0.2→1): 中心ほど高確率、縁ほど徐々に間引く
+          const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
+          if(Math.random()>t*t*(3-2*t)*0.75) continue;
           const i=(y*lpSZ+x)*4;
           if(lpData[i+3]<15) continue;
           const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
           if(r>245&&g>245&&b>245) continue;
           if(!topColors.has((r<<16)|(g<<8)|b)) continue;
-          pixels.push({nx:(x/lpSZ)*2-1, ny:(y/lpSZ)*2-1, r:r/255, g:g/255, b:b/255});
+          pixels.push({nx, ny, r:r/255, g:g/255, b:b/255});
         }
         if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
       } else if(mode==='face_portrait'){
@@ -603,21 +608,28 @@ function makeImageData(url){
           if(!topColors.has((r<<16)|(g<<8)|b)) continue;
           const dfx=x-faceCX, dfy=y-faceCY;
           const inFace=Math.sqrt(dfx*dfx+dfy*dfy)<FACE_THRESH;
+          const nx=Math.max(-1.5,Math.min(1.5,dfx/FNORM));
+          const ny=Math.max(-1.5,Math.min(1.5,dfy/FNORM));
+          const normDist=Math.sqrt(nx*nx+ny*ny);
+          // 顔領域は半径1.3、背景は半径1.0で打ち切り（四隅カット）
+          if(normDist > (inFace ? 1.3 : 1.0)) continue;
           if(!( inFace ? Math.random()<0.72 : Math.random()<0.18 )) continue;
-          pixels.push({
-            nx:Math.max(-1.5,Math.min(1.5,dfx/FNORM)),
-            ny:Math.max(-1.5,Math.min(1.5,dfy/FNORM)),
-            r:r/255, g:g/255, b:b/255
-          });
+          pixels.push({nx, ny, r:r/255, g:g/255, b:b/255});
         }
         if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
       } else {
+        // illust：全面カラーでも円形シルエットに（四隅を除外 + 縁を確率的に間引く）
         for(let py=0;py<PSIZ;py+=2){
           for(let lpx=0;lpx<PSIZ;lpx+=2){
+            const nx=(lpx/PSIZ)*2-1, ny=(py/PSIZ)*2-1;
+            const dist=Math.sqrt(nx*nx+ny*ny);
+            if(dist>1.0) continue;
+            const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
+            if(Math.random()>t*t*(3-2*t)) continue;
             const i=(py*PSIZ+lpx)*4;
             const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
             if(!isColored(r,g,b,a)) continue;
-            pixels.push({nx:(lpx/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:r/255, g:g/255, b:b/255});
+            pixels.push({nx, ny, r:r/255, g:g/255, b:b/255});
           }
         }
         if(pixels.length>2200){pixels.sort(()=>Math.random()-.5); pixels.length=2200;}
