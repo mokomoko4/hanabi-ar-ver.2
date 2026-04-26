@@ -56,7 +56,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div class="ver">v7.9c</div>
+<div class="ver">v8.0</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -181,7 +181,7 @@ geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 // モバイル判定 + DPR 補正サイズブースト
 const _dpr      = Math.min(window.devicePixelRatio || 1, 3);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 1.2 : 1.0;
+const _sizeBoost = _isMobile ? _dpr * 2.2 : 1.2;
 
 const mat = new THREE.ShaderMaterial({
   uniforms: { uSizeBoost: { value: _sizeBoost } },
@@ -197,7 +197,7 @@ const mat = new THREE.ShaderMaterial({
       // 輝度が高い粒子ほど少し大きく（発光感）
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(6.0, aS*uSizeBoost*szMod*(520.0/-mv.z));
+      gl_PointSize=max(8.0, aS*uSizeBoost*szMod*(680.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -207,9 +207,9 @@ const mat = new THREE.ShaderMaterial({
       float core=1.-smoothstep(.0,.22,d);
       float glow=1.-smoothstep(.0,.60,d);
       float halo=1.-smoothstep(.18,1.,d);
-      float a=(core*.95+glow*.32+halo*.16)*vA;
+      float a=(core*.95+glow*.42+halo*.20)*vA;
       if(a<.01)discard;
-      vec3 col=clamp(vC*(1.+core*3.2+glow*0.75),0.,1.);
+      vec3 col=clamp(vC*(1.+core*4.2+glow*1.1),0.,1.);
       gl_FragColor=vec4(col,a);
     }`,
   transparent:true, blending:THREE.AdditiveBlending,
@@ -248,7 +248,7 @@ function updateParticles(){
     if(cnt >= MAX) continue;
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
-    bA[cnt]=p.a;   bS[cnt]=p.s*(0.45+p.a*0.55); // alpha連動でサイズ縮小
+    bA[cnt]=p.a;   bS[cnt]=p.s*Math.max(0.12, p.a*1.05);
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -277,10 +277,18 @@ const PALETTES = [
 // ══════════════════════════════════════════════
 
 function burst(x, y, z, pal){
-  for(let i=0; i<260; i++){
+  // 中心閃光：極短命の白〜黄大粒子
+  for(let i=0; i<10; i++){
+    const flashC = Math.random()<0.5 ? [1,1,1] : [1,0.95,0.4];
+    addP(x,y,z,
+      (Math.random()-.5)*.012,(Math.random()-.5)*.012,(Math.random()-.5)*.012,
+      flashC[0],flashC[1],flashC[2], 0.22+Math.random()*0.08, 1.8+Math.random()*0.9);
+  }
+  // メイン爆発粒子
+  for(let i=0; i<380; i++){
     const theta=Math.random()*Math.PI*2, phi=Math.acos(2*Math.random()-1);
-    const sp=0.040+Math.random()*0.092;
-    const zFwd=(Math.random()<0.15)?0.055+Math.random()*0.045:0;
+    const sp=0.058+Math.random()*0.132;
+    const zFwd=(Math.random()<0.15)?0.072+Math.random()*0.055:0;
     const c=pal[Math.floor(Math.random()*pal.length)];
     addP(x,y,z,
       Math.sin(phi)*Math.cos(theta)*sp,
@@ -288,7 +296,8 @@ function burst(x, y, z, pal){
       Math.cos(phi)*sp*0.58+zFwd,
       c[0],c[1],c[2], 0.004+Math.random()*0.006, 0.44+Math.random()*0.46);
   }
-  for(let i=0; i<18; i++){
+  // 白フラッシュ
+  for(let i=0; i<24; i++){
     addP(x,y,z,
       (Math.random()-.5)*.025,(Math.random()-.5)*.025,(Math.random()-.5)*.025,
       1,1,1, 0.060+Math.random()*0.050, 0.85+Math.random()*0.75);
