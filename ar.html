@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.5</div>
+<div class="ver">v8.6</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -238,20 +238,19 @@ function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0){
   ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold});
 }
 
-// 画像形状用：center→target を通過して外側へ飛び続ける粒子
-// ドラッグ 0.983 下で ~18フレームで target に到達する速度を初速とし、
-// easeOut しないので target付近で止まらず、そのまま抜けて外側へ飛ぶ。
-// DRAG_FACTOR = sum(0.983^i, i=0..17) = (1-0.983^18)/0.017 ≈ 15.5
-function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraSpeed, s, decay){
+// 画像形状用：center→target を全粒子ほぼ同タイミングで通過して外側へ飛ぶ
+// extraFrac を乗算にすることで、内側・外側ともに (18/(1+extraFrac)) フレームで到達。
+// 加算 extraSpeed だと内側ピクセルが極端に早く通過し、形が同時に形成されない。
+// DRAG_FACTOR = (1-0.983^18)/0.017 ≈ 15.5
+function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay){
   const dx=tx-sx, dy=ty-sy, dz=tz-sz;
   const len = Math.sqrt(dx*dx+dy*dy+dz*dz) || 0.001;
   const nx=dx/len, ny=dy/len, nz=dz/len;
-  const throughSpeed = len / 15.5; // ~18フレームで target を通過する最低速度
-  const totalSpeed   = throughSpeed + extraSpeed;
+  const totalSpeed = (len / 15.5) * (1 + extraFrac); // 全距離で同比率の超過
   addP(sx,sy,sz,
-    nx*totalSpeed + (Math.random()-.5)*0.012,
-    ny*totalSpeed + (Math.random()-.5)*0.012,
-    nz*totalSpeed + (Math.random()-.5)*0.012,
+    nx*totalSpeed + (Math.random()-.5)*0.008,
+    ny*totalSpeed + (Math.random()-.5)*0.008,
+    nz*totalSpeed + (Math.random()-.5)*0.008,
     r,g,b, decay, s);
 }
 
@@ -399,7 +398,7 @@ function makeImageData(url){
           pixels.push({nx:(px/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:r/255, g:g/255, b:b/255});
         }
       }
-      if(pixels.length>900){pixels.sort(()=>Math.random()-.5); pixels.length=900;}
+      if(pixels.length>1200){pixels.sort(()=>Math.random()-.5); pixels.length=1200;}
 
       resolve({pixels, isLineArt});
     };
@@ -438,20 +437,16 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=fal
     const ty = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF;
     const tz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF;
     const dist = Math.sqrt(px.nx*px.nx + px.ny*px.ny);
-    // target 通過後の余剰速度（外周ほど速く）
-    // = throughSpeed との合計で target を ~15フレームで通過し、その後外側へ抜ける
-    const extraSpeed = 0.028 + dist*0.048 + Math.random()*0.022;
+    // 乗算 extraFrac：内外ともに (18/(1+extraFrac)) フレームで target を通過
+    // → 全粒子がほぼ同タイミングで形状を形成し、そのまま外へ抜ける
+    const extraFrac = 0.25 + dist*0.18 + Math.random()*0.20;
     addDirP(
-      center.x + (Math.random()-.5)*0.03,
-      center.y + (Math.random()-.5)*0.03,
-      center.z + (Math.random()-.5)*0.06,
-      tx + (Math.random()-.5)*0.05,
-      ty + (Math.random()-.5)*0.05,
-      tz + (Math.random()-.5)*0.10,
+      center.x, center.y, center.z,
+      tx, ty, tz,
       px.r, px.g, px.b,
-      extraSpeed,
+      extraFrac,
       (0.10+Math.random()*0.08)*szB,
-      0.004+Math.random()*0.003  // 2.2〜4s で消える
+      0.004+Math.random()*0.003
     );
   }
   // 爆発中心フラッシュ（極少量・画像形状を邪魔しない）
