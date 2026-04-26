@@ -56,7 +56,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div class="ver">v7.7</div>
+<div class="ver">v7.8</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -364,10 +364,11 @@ const CARD_FADEOUT = 26;   // フェードアウトフレーム数
 
 const imageCards = [];
 
-function createImageCard(texture, pos, snapRight, snapUp){
+function createImageCard(texture, pos, snapForward, snapRight, snapUp){
   const geo = new THREE.PlaneGeometry(CARD_SIZE, CARD_SIZE);
+  const towardCam = snapForward.clone().negate(); // anchor→カメラ方向
 
-  // メインプレーン（実画像）
+  // ── メインプレーン（出現時 scale 0.5→1.0）──
   const mat = new THREE.MeshBasicMaterial({
     map:texture, transparent:true, opacity:0,
     side:THREE.DoubleSide, depthWrite:false
@@ -375,27 +376,69 @@ function createImageCard(texture, pos, snapRight, snapUp){
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.copy(pos);
   mesh.up.copy(snapUp);
-  mesh.lookAt(new THREE.Vector3(0,0,0)); // カメラ（原点）の方を向く
+  mesh.lookAt(new THREE.Vector3(0,0,0));
+  mesh.scale.setScalar(0.5);
   scene.add(mesh);
 
-  // グロープレーン（少し大きめ・加算合成）
+  // ── グロー霞（大きめ・手前・加算合成）──
   const gmat = new THREE.MeshBasicMaterial({
     map:texture, transparent:true, opacity:0,
     side:THREE.DoubleSide, depthWrite:false,
     blending:THREE.AdditiveBlending
   });
   const glow = new THREE.Mesh(geo, gmat);
-  glow.position.copy(pos);
+  glow.position.copy(pos).addScaledVector(towardCam, 0.04);
   glow.up.copy(snapUp);
   glow.lookAt(new THREE.Vector3(0,0,0));
-  glow.scale.setScalar(1.16);
+  glow.scale.setScalar(0.5 * 1.24);
   scene.add(glow);
 
-  return { mesh, glow, geo, mat, gmat, texture,
-           state:'fadeIn', timer:0,
-           pixels:null, pos:pos.clone(),
-           snapRight:snapRight.clone(), snapUp:snapUp.clone(),
-           particlesSpawned:false };
+  // ── 奥行きレイヤー（カメラから遠い方向に 2 枚）──
+  const LAYER_OFFSETS = [0.32, 0.65];
+  const LAYER_SCALES  = [1.07, 1.14];
+  const LAYER_MAXOPA  = [0.24, 0.11];
+  const layers = [];
+  for(let li=0; li<2; li++){
+    const lmat = new THREE.MeshBasicMaterial({
+      map:texture, transparent:true, opacity:0,
+      side:THREE.DoubleSide, depthWrite:false,
+      blending:THREE.AdditiveBlending
+    });
+    const lmesh = new THREE.Mesh(geo, lmat);
+    lmesh.position.copy(pos).addScaledVector(snapForward, LAYER_OFFSETS[li]);
+    lmesh.up.copy(snapUp);
+    lmesh.lookAt(new THREE.Vector3(0,0,0));
+    lmesh.scale.setScalar(0.5 * LAYER_SCALES[li]);
+    scene.add(lmesh);
+    layers.push({ mesh:lmesh, mat:lmat, maxOpacity:LAYER_MAXOPA[li], scale:LAYER_SCALES[li] });
+  }
+
+  // ── ネオン縁取り（LineLoop・最前面）──
+  const HALF_S = CARD_SIZE * 0.5;
+  const bGeo = new THREE.BufferGeometry();
+  bGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    -HALF_S,-HALF_S,0,  HALF_S,-HALF_S,0,  HALF_S,HALF_S,0,  -HALF_S,HALF_S,0
+  ]), 3));
+  const bMat = new THREE.LineBasicMaterial({
+    color:0xffffff, transparent:true, opacity:0,
+    blending:THREE.AdditiveBlending
+  });
+  const border = new THREE.LineLoop(bGeo, bMat);
+  border.position.copy(pos).addScaledVector(towardCam, 0.10);
+  border.up.copy(snapUp);
+  border.lookAt(new THREE.Vector3(0,0,0));
+  border.scale.setScalar(0.5);
+  scene.add(border);
+
+  return {
+    mesh, glow, geo, mat, gmat,
+    layers, border, bGeo, bMat,
+    texture, state:'fadeIn', timer:0,
+    pixels:null, pos:pos.clone(),
+    snapForward:snapForward.clone(),
+    snapRight:snapRight.clone(), snapUp:snapUp.clone(),
+    particlesSpawned:false
+  };
 }
 
 function spawnCardParticles(card){
@@ -404,19 +447,24 @@ function spawnCardParticles(card){
   const sr=card.snapRight, su=card.snapUp, p=card.pos;
   const HALF = CARD_SIZE * 0.5;
   for(const px of card.pixels){
-    // ワールド座標に展開（画像Y軸は下向きなので -ny）
     const wx = p.x + sr.x*px.nx*HALF + su.x*(-px.ny)*HALF;
     const wy = p.y + sr.y*px.nx*HALF + su.y*(-px.ny)*HALF;
     const wz = p.z + sr.z*px.nx*HALF + su.z*(-px.ny)*HALF;
+    // 外周ほど速く剥がれる（遠心力方向）
+    const dist = Math.sqrt(px.nx*px.nx + px.ny*px.ny);
+    const centrifugal = 0.018 + dist * 0.044;
+    const outLen = dist || 1;
+    const outX = (sr.x*px.nx + su.x*(-px.ny)) / outLen;
+    const outY = (sr.y*px.nx + su.y*(-px.ny)) / outLen;
+    const outZ = (sr.z*px.nx + su.z*(-px.ny)) / outLen;
     const theta=Math.random()*Math.PI*2, phi=Math.acos(2*Math.random()-1);
-    const sp=0.022+Math.random()*0.058;
-    const zFwd=(Math.random()<0.40)?0.028+Math.random()*0.048:0;
+    const sp=0.018+Math.random()*0.050;
     addP(wx,wy,wz,
-      Math.sin(phi)*Math.cos(theta)*sp,
-      Math.sin(phi)*Math.sin(theta)*sp+0.006,
-      Math.cos(phi)*sp*0.55+zFwd,
+      Math.sin(phi)*Math.cos(theta)*sp + outX*centrifugal,
+      Math.sin(phi)*Math.sin(theta)*sp + outY*centrifugal + 0.008,
+      Math.cos(phi)*sp*0.40           + outZ*centrifugal*0.30,
       px.r, px.g, px.b,
-      0.006+Math.random()*0.008, 0.52+Math.random()*0.38);
+      0.007+Math.random()*0.009, 0.55+Math.random()*0.40);
   }
 }
 
@@ -424,22 +472,52 @@ function updateImageCards(){
   for(let i=imageCards.length-1; i>=0; i--){
     const c = imageCards[i];
     c.timer++;
+
     if(c.state==='fadeIn'){
-      const t = Math.min(1, c.timer/CARD_FADEIN);
+      const t  = Math.min(1, c.timer/CARD_FADEIN);
+      const sc = 0.5 + 0.5*(t*t*(3-2*t)); // smoothstep 0.5→1.0
       c.mat.opacity  = t * 0.96;
       c.gmat.opacity = t * 0.45;
+      c.bMat.opacity = t * 0.92;
+      c.mesh.scale.setScalar(sc);
+      c.glow.scale.setScalar(sc * 1.24);
+      c.border.scale.setScalar(sc);
+      for(const l of c.layers){
+        l.mat.opacity = t * l.maxOpacity;
+        l.mesh.scale.setScalar(sc * l.scale);
+      }
       if(c.timer >= CARD_FADEIN){ c.state='hold'; c.timer=0; }
+
     } else if(c.state==='hold'){
+      // 輪郭ホタル粒子（4フレームに1粒）
+      if(c.timer % 4 === 0 && c.pixels && c.pixels.length > 0){
+        const px = c.pixels[Math.floor(Math.random()*c.pixels.length)];
+        const HALF=CARD_SIZE*0.5, sr=c.snapRight, su=c.snapUp, p=c.pos;
+        addP(
+          p.x+sr.x*px.nx*HALF+su.x*(-px.ny)*HALF+(Math.random()-.5)*.14,
+          p.y+sr.y*px.nx*HALF+su.y*(-px.ny)*HALF+(Math.random()-.5)*.14,
+          p.z+sr.z*px.nx*HALF+su.z*(-px.ny)*HALF+(Math.random()-.5)*.07,
+          (Math.random()-.5)*.006, (Math.random()-.5)*.006+0.004, (Math.random()-.5)*.004,
+          px.r, px.g, px.b,
+          0.010+Math.random()*0.008, 0.30+Math.random()*0.22);
+      }
       if(c.timer >= CARD_HOLD){ c.state='fadeOut'; c.timer=0; }
+
     } else if(c.state==='fadeOut'){
       if(c.timer===1) spawnCardParticles(c);
       const t = 1 - Math.min(1, c.timer/CARD_FADEOUT);
       c.mat.opacity  = t * 0.96;
       c.gmat.opacity = t * 0.45;
+      c.bMat.opacity = t * 0.92;
+      for(const l of c.layers) l.mat.opacity = t * l.maxOpacity;
       if(c.timer >= CARD_FADEOUT){ c.state='done'; }
+
     } else {
-      scene.remove(c.mesh); scene.remove(c.glow);
-      c.mat.dispose(); c.gmat.dispose(); c.geo.dispose(); c.texture.dispose();
+      scene.remove(c.mesh); scene.remove(c.glow); scene.remove(c.border);
+      for(const l of c.layers){ scene.remove(l.mesh); l.mat.dispose(); }
+      c.mat.dispose(); c.gmat.dispose();
+      c.bGeo.dispose(); c.bMat.dispose();
+      c.geo.dispose(); c.texture.dispose();
       imageCards.splice(i,1);
     }
   }
@@ -535,7 +613,7 @@ function launchAnchorFirework(){
 
     if(imageData){
       // 画像カード表示 → 1秒後に粒子化
-      const card = createImageCard(imageData.texture, burstPos, snapRight, snapUp);
+      const card = createImageCard(imageData.texture, burstPos, forward.clone(), snapRight, snapUp);
       card.pixels = imageData.pixels;
       imageCards.push(card);
     } else {
