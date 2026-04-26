@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.4a</div>
+<div class="ver">v8.4b</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -263,7 +263,7 @@ function updateParticles(){
       p.hold--;
     } else {
       p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
-      p.vy -= 0.0028;
+      p.vy -= 0.0014;
       p.vx *= 0.983; p.vy *= 0.983; p.vz *= 0.968;
       p.a  -= p.decay;
       if(p.a <= 0){ ps.splice(i,1); continue; }
@@ -271,7 +271,7 @@ function updateParticles(){
     if(cnt >= MAX) continue;
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
-    bA[cnt]=p.a;   bS[cnt]=p.s*Math.max(0.12, p.a*1.05);
+    bA[cnt]=p.a;   bS[cnt]=p.s*Math.max(0.38, 0.38 + p.a*0.67);
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
