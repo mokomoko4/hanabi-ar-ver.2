@@ -56,7 +56,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div class="ver">v7.9</div>
+<div class="ver">v7.9b</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -306,7 +306,7 @@ function makeImageData(url){
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const ar = img.width / img.height;
-      const PSIZ = 80; // 細かくサンプリングして形の精度を上げる
+      const PSIZ = 128; // 高解像度で細い線・文字を拾う
       const pc = document.createElement('canvas');
       pc.width = pc.height = PSIZ;
       const pctx = pc.getContext('2d');
@@ -315,24 +315,17 @@ function makeImageData(url){
       pctx.drawImage(img,(PSIZ-dw)/2,(PSIZ-dh)/2,dw,dh);
       const pd = pctx.getImageData(0,0,PSIZ,PSIZ).data;
       const pixels = [];
-      for(let py=0; py<PSIZ; py+=3){
-        for(let px=0; px<PSIZ; px+=3){
+      for(let py=0; py<PSIZ; py+=2){ // 2px 飛ばし
+        for(let px=0; px<PSIZ; px+=2){
           const i=(py*PSIZ+px)*4;
           const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
-          if(a<30 || (r<15&&g<15&&b<15)) continue;
-          const brightness=(r+g+b)/3;
-          const saturation=Math.max(r,g,b)-Math.min(r,g,b);
-          // グラデーション白抜き（縁のアンチエイリアスも除去）
-          if(brightness > 180){
-            const whiteness=Math.min(1,(brightness-180)/60);
-            const colorKeep=Math.min(1,saturation/35)*0.45;
-            if(Math.max(0,1-whiteness*(1-colorKeep)) < 0.28) continue;
-          }
+          if(a<20) continue;                    // ほぼ透明のみ除外
+          if(r>245&&g>245&&b>245) continue;     // 純白のみ除外（薄い色は残す）
           pixels.push({ nx:(px/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:r/255, g:g/255, b:b/255 });
         }
       }
-      if(pixels.length>400){ pixels.sort(()=>Math.random()-.5); pixels.length=400; }
-      resolve(pixels); // ピクセル配列のみ返す（テクスチャ不要）
+      if(pixels.length>900){ pixels.sort(()=>Math.random()-.5); pixels.length=900; }
+      resolve(pixels);
     };
     img.onerror = reject;
     img.src = url;
@@ -345,15 +338,15 @@ function makeImageData(url){
 // ══════════════════════════════════════════════
 
 const SHAPE_SCALE = 3.0;  // ワールド幅 [m]
-const SHAPE_HOLD  = 42;   // 静止フレーム数（~0.7秒）
+const SHAPE_HOLD  = 54;   // 静止フレーム数（~0.9秒）
 
 function showImageParticleShape(center, pixels, snapRight, snapUp){
   const HALF = SHAPE_SCALE * 0.5;
   for(const px of pixels){
     // 画像座標→ワールド座標（Y軸反転、Z方向に薄い厚み）
-    const wx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF + (Math.random()-.5)*0.08;
-    const wy = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF + (Math.random()-.5)*0.08;
-    const wz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF + (Math.random()-.5)*0.20;
+    const wx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF + (Math.random()-.5)*0.04;
+    const wy = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF + (Math.random()-.5)*0.04;
+    const wz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF + (Math.random()-.5)*0.12;
     // 爆散速度：外周ほど速く剥がれる遠心力
     const dist = Math.sqrt(px.nx*px.nx+px.ny*px.ny);
     const centrifugal = 0.016 + dist*0.042;
@@ -368,8 +361,8 @@ function showImageParticleShape(center, pixels, snapRight, snapUp){
       Math.sin(phi)*Math.sin(theta)*sp + outY*centrifugal + 0.007,
       Math.cos(phi)*sp*0.42           + outZ*centrifugal*0.28,
       px.r, px.g, px.b,
-      0.005+Math.random()*0.007,
-      0.52 +Math.random()*0.40,
+      0.005+Math.random()*0.006,
+      0.035+Math.random()*0.035,  // 小さく絞って形が読める大きさに
       SHAPE_HOLD);
   }
   // 爆発中心フラッシュ（hold なし）
