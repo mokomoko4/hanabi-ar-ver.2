@@ -64,7 +64,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v8.9b</div>
+<div class="ver">v8.9c</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -429,6 +429,29 @@ function makeImageData(url){
 
 const SHAPE_SCALE = 5.0; // ワールド幅 [m]
 
+// 黒・暗色を花火の発光色に変換（形認識には使うが表示色は黒にしない）
+const _DARK_PAL = [
+  [1.00, 0.86, 0.47], // gold
+  [1.00, 0.63, 0.31], // orange
+  [1.00, 0.47, 0.71], // pink
+  [0.63, 0.86, 1.00], // sky blue
+  [1.00, 1.00, 0.90], // warm white
+];
+function mapFireworkColor(r, g, b){
+  const br = r*0.299 + g*0.587 + b*0.114; // luminance
+  if(br < 0.24){
+    // 黒・濃色 → ランダム発光色
+    return _DARK_PAL[Math.floor(Math.random()*_DARK_PAL.length)];
+  }
+  // 暗めの色は少し明るく補正
+  const boost = br < 0.55 ? 1.35 : 1.0;
+  return [
+    Math.min(1, r*boost + 0.10),
+    Math.min(1, g*boost + 0.10),
+    Math.min(1, b*boost + 0.10),
+  ];
+}
+
 // 爆発中心に0.5秒残る残光グロー（見失い防止）
 function addCenterGlow(x, y, z){
   for(let i=0; i<10; i++){
@@ -454,10 +477,11 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=fal
     // 乗算 extraFrac：内外ともに (18/(1+extraFrac)) フレームで target を通過
     // → 全粒子がほぼ同タイミングで形状を形成し、そのまま外へ抜ける
     const extraFrac = 0.25 + dist*0.18 + Math.random()*0.20;
+    const [cr,cg,cb] = mapFireworkColor(px.r, px.g, px.b);
     addDirP(
       center.x, center.y, center.z,
       tx, ty, tz,
-      px.r, px.g, px.b,
+      cr, cg, cb,
       extraFrac,
       (0.10+Math.random()*0.08)*szB,
       0.004+Math.random()*0.003
