@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.1</div>
+<div class="ver">v8.2</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -238,13 +238,37 @@ function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0){
   ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold});
 }
 
+// 画像形状用：center→target を通過して外側へ飛び続ける粒子
+function easeOutCubic(t){ return 1 - Math.pow(1 - Math.min(t,1), 3); }
+
+function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, outSpeed, s, decay){
+  const dx=tx-sx, dy=ty-sy, dz=tz-sz;
+  const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+  ps.push({
+    x:sx, y:sy, z:sz,
+    sx,sy,sz, tx,ty,tz,
+    vx:dx/len*outSpeed, vy:dy/len*outSpeed, vz:dz/len*outSpeed,
+    r,g,b, a:1.0, s, decay,
+    age:0,
+    throughF: 16 + Math.floor(Math.random()*8), // 0.27〜0.38秒で形成
+    phase:1
+  });
+}
+
 function updateParticles(){
   let cnt = 0;
   for(let i=ps.length-1; i>=0; i--){
     const p = ps[i];
-    if(p.hold > 0){
+    if(p.phase === 1){
+      // phase1：center→target へ easeOut 補間（α=1 固定）
+      p.age++;
+      const k = easeOutCubic(p.age / p.throughF);
+      p.x = p.sx + (p.tx - p.sx) * k;
+      p.y = p.sy + (p.ty - p.sy) * k;
+      p.z = p.sz + (p.tz - p.sz) * k;
+      if(p.age >= p.throughF) p.phase = 2; // target 通過→自由飛行へ
+    } else if(p.hold > 0){
       p.hold--;
-      // 静止中：位置・alpha 変更なし、そのまま描画
     } else {
       p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
       p.vy -= 0.0028;
@@ -394,13 +418,12 @@ function makeImageData(url){
 
 // ══════════════════════════════════════════════
 // 画像形状パーティクル
-// 爆発直後に発光粒子が絵の形に整列→0.7秒静止→球状爆散
+// center から出発 → 0.3秒で形成位置を通過 → そのまま外へ飛散
 // ══════════════════════════════════════════════
 
-const SHAPE_SCALE = 5.0;  // ワールド幅 [m]（拡大）
-const SHAPE_HOLD  = 28;   // 静止フレーム数（~0.47秒で形を見せてから爆散）
+const SHAPE_SCALE = 5.0; // ワールド幅 [m]
 
-// 爆発中心に0.8秒残る残光グロー（見失い防止）
+// 爆発中心に0.5秒残る残光グロー（見失い防止）
 function addCenterGlow(x, y, z){
   for(let i=0; i<10; i++){
     const r2 = Math.random()*0.18;
@@ -408,43 +431,42 @@ function addCenterGlow(x, y, z){
     addP(x,y,z,
       (Math.random()-.5)*r2,(Math.random()-.5)*r2,(Math.random()-.5)*r2,
       gc[0],gc[1],gc[2],
-      0.018+Math.random()*0.006,   // decay ~0.8s
+      0.024+Math.random()*0.008, // decay ~0.5s
       2.8+Math.random()*1.8);
   }
 }
 
 function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=false){
-  const HALF  = SHAPE_SCALE * 0.5;
-  const szB   = isLineArt ? 1.4 : 1.0;
+  const HALF = SHAPE_SCALE * 0.5;
+  const szB  = isLineArt ? 1.4 : 1.0;
   for(const px of pixels){
-    const wx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF + (Math.random()-.5)*0.05;
-    const wy = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF + (Math.random()-.5)*0.05;
-    const wz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF + (Math.random()-.5)*0.15;
-    // 外周ほど速く剥がれる遠心力（大幅強化→画面外まで広がる）
-    const dist = Math.sqrt(px.nx*px.nx+px.ny*px.ny);
-    const centrifugal = 0.050 + dist*0.130;
-    const outLen = dist || 1;
-    const outX=(snapRight.x*px.nx+snapUp.x*(-px.ny))/outLen;
-    const outY=(snapRight.y*px.nx+snapUp.y*(-px.ny))/outLen;
-    const outZ=(snapRight.z*px.nx+snapUp.z*(-px.ny))/outLen;
-    const theta=Math.random()*Math.PI*2, phi=Math.acos(2*Math.random()-1);
-    const sp=0.040+Math.random()*0.090;
-    addP(wx,wy,wz,
-      Math.sin(phi)*Math.cos(theta)*sp + outX*centrifugal,
-      Math.sin(phi)*Math.sin(theta)*sp + outY*centrifugal + 0.010,
-      Math.cos(phi)*sp*0.42           + outZ*centrifugal*0.28,
+    // target = 画像ピクセルのワールド座標（通過点）
+    const tx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF;
+    const ty = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF;
+    const tz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF;
+    const dist = Math.sqrt(px.nx*px.nx + px.ny*px.ny);
+    // target 通過後の速度：外周ほど速く（画面外まで広がる）
+    const outSpeed = 0.060 + dist*0.075 + Math.random()*0.050;
+    addDirP(
+      center.x + (Math.random()-.5)*0.04,
+      center.y + (Math.random()-.5)*0.04,
+      center.z + (Math.random()-.5)*0.08,
+      tx + (Math.random()-.5)*0.06,
+      ty + (Math.random()-.5)*0.06,
+      tz + (Math.random()-.5)*0.12,
       px.r, px.g, px.b,
-      0.005+Math.random()*0.006,
-      (0.038+Math.random()*0.038)*szB,
-      SHAPE_HOLD);
+      outSpeed,
+      (0.040+Math.random()*0.040)*szB,
+      0.004+Math.random()*0.003  // 2.2〜4s で消える
+    );
   }
-  // 爆発中心フラッシュ
+  // 爆発中心フラッシュ（即時）
   for(let i=0;i<14;i++){
     addP(center.x,center.y,center.z,
       (Math.random()-.5)*.038,(Math.random()-.5)*.038,(Math.random()-.5)*.038,
       1,1,1, 0.055+Math.random()*0.040, 0.88+Math.random()*0.65);
   }
-  // 中心残光（0.8秒間、どこを見ればいいか分かる）
+  // 中心残光（見失い防止）
   addCenterGlow(center.x, center.y, center.z);
 }
 
