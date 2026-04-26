@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.7</div>
+<div class="ver">v8.8</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -90,11 +90,19 @@ firebase.initializeApp({
 const db = firebase.database();
 
 let works = [];
+const imageCache = {}; // url → {pixels, isLineArt}
+
 db.ref('works').once('value', snap => {
   const data = snap.val() || {};
   works = Object.entries(data)
     .map(([k,v]) => ({id:k,...v}))
     .filter(w => w.type === 'png' && w.url);
+  // 全作品をバックグラウンドでプリキャッシュ（タップ時に即使える）
+  works.forEach(w => {
+    makeImageData(w.url)
+      .then(d => { imageCache[w.url] = d; })
+      .catch(() => {});
+  });
   if(works.length > 0){
     document.getElementById('hintTxt').textContent =
       `タップで絵を花火に！🎆 (${works.length}作品)`;
@@ -515,16 +523,29 @@ function updateRockets(){
 
 let _workIndex = 0;
 
-function launchAnchorFirework(){
+function _doLaunch(imgData, snapRight, snapUp){
   const forward = new THREE.Vector3();
   cam.getWorldDirection(forward);
   const worldUp = new THREE.Vector3(0, 1, 0);
-
   const burstAnchor = cam.position.clone()
     .addScaledVector(forward, 10)
     .addScaledVector(worldUp, 3);
   const launchStart = burstAnchor.clone()
     .addScaledVector(worldUp, -5);
+
+  launchVector(launchStart, burstAnchor, null, burstPos => {
+    setTimeout(()=>boom(), 55);
+    if(imgData && imgData.pixels && imgData.pixels.length > 0){
+      showImageParticleShape(burstPos, imgData.pixels, snapRight, snapUp, imgData.isLineArt);
+    }
+    // 作品あり・読み込み失敗時は何も出さない（burst混入なし）
+  });
+}
+
+function launchAnchorFirework(){
+  const forward = new THREE.Vector3();
+  cam.getWorldDirection(forward);
+  const worldUp = new THREE.Vector3(0, 1, 0);
 
   const snapRight = new THREE.Vector3()
     .crossVectors(forward, worldUp).normalize();
@@ -532,33 +553,36 @@ function launchAnchorFirework(){
   const snapUp = new THREE.Vector3()
     .crossVectors(snapRight, forward).normalize();
 
-  // 画像読み込み（ロケット発射と並列）- 作品を順番に1枚ずつ使用
-  let imageData = null;
-  if(works.length > 0){
-    const work = works[_workIndex % works.length];
-    _workIndex++;
-    makeImageData(work.url)
-      .then(d => { imageData = d; })
-      .catch(() => {});
+  if(works.length === 0){
+    // 作品なし → 通常花火
+    const fwd = forward.clone();
+    const wUp = worldUp.clone();
+    const bAnchor = cam.position.clone().addScaledVector(fwd,10).addScaledVector(wUp,3);
+    const lStart  = bAnchor.clone().addScaledVector(wUp,-5);
+    launchVector(lStart, bAnchor,
+      PALETTES[Math.floor(Math.random()*PALETTES.length)], null);
+    return;
   }
 
-  launchVector(launchStart, burstAnchor, null, burstPos => {
-    setTimeout(()=>boom(), 55);
+  // 作品あり：キャッシュ確認→なければロード→ロケット発射
+  const work = works[_workIndex % works.length];
+  _workIndex++;
 
-    if(imageData && imageData.pixels && imageData.pixels.length > 0){
-      // 作品花火：画像形状のみ。通常花火粒子は混ぜない。
-      showImageParticleShape(burstPos, imageData.pixels, snapRight, snapUp, imageData.isLineArt);
-    } else {
-      // 画像未取得: フラッシュ＋パレット花火にフォールバック
-      for(let i=0;i<18;i++){
-        addP(burstPos.x,burstPos.y,burstPos.z,
-          (Math.random()-.5)*.045,(Math.random()-.5)*.045,(Math.random()-.5)*.045,
-          1,1,1, 0.050+Math.random()*0.045, 0.90+Math.random()*0.75);
-      }
-      burst(burstPos.x, burstPos.y, burstPos.z,
-            PALETTES[Math.floor(Math.random()*PALETTES.length)]);
-    }
-  });
+  const cached = imageCache[work.url];
+  if(cached){
+    // キャッシュヒット：即発射
+    _doLaunch(cached, snapRight, snapUp);
+  } else {
+    // キャッシュミス：画像ロード完了後に発射（burst fallback しない）
+    makeImageData(work.url)
+      .then(d => {
+        imageCache[work.url] = d;
+        _doLaunch(d, snapRight, snapUp);
+      })
+      .catch(() => {
+        // 読み込み失敗：ロケットも出さない（通常花火混入なし）
+      });
+  }
 }
 
 let _hintTimer = null;
