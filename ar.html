@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.4b</div>
+<div class="ver">v8.5</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -454,11 +454,11 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=fal
       0.004+Math.random()*0.003  // 2.2〜4s で消える
     );
   }
-  // 爆発中心フラッシュ（即時）
-  for(let i=0;i<14;i++){
+  // 爆発中心フラッシュ（極少量・画像形状を邪魔しない）
+  for(let i=0;i<5;i++){
     addP(center.x,center.y,center.z,
-      (Math.random()-.5)*.038,(Math.random()-.5)*.038,(Math.random()-.5)*.038,
-      1,1,1, 0.055+Math.random()*0.040, 0.88+Math.random()*0.65);
+      (Math.random()-.5)*.010,(Math.random()-.5)*.010,(Math.random()-.5)*.010,
+      1,1,1, 0.08+Math.random()*0.06, 0.70+Math.random()*0.40);
   }
   // 中心残光（見失い防止）
   addCenterGlow(center.x, center.y, center.z);
@@ -545,19 +545,18 @@ function launchAnchorFirework(){
   }
 
   launchVector(launchStart, burstAnchor, null, burstPos => {
-    // 爆発フラッシュ粒子（即時）
-    for(let i=0;i<18;i++){
-      addP(burstPos.x,burstPos.y,burstPos.z,
-        (Math.random()-.5)*.045,(Math.random()-.5)*.045,(Math.random()-.5)*.045,
-        1,1,1, 0.050+Math.random()*0.045, 0.90+Math.random()*0.75);
-    }
     setTimeout(()=>boom(), 55);
 
     if(imageData && imageData.pixels && imageData.pixels.length > 0){
-      // 爆発点から粒子が画像形状を通過→そのまま飛散
+      // 作品花火：画像形状のみ。通常花火粒子は混ぜない。
       showImageParticleShape(burstPos, imageData.pixels, snapRight, snapUp, imageData.isLineArt);
     } else {
-      // 画像未取得: パレット花火にフォールバック
+      // 画像未取得: フラッシュ＋パレット花火にフォールバック
+      for(let i=0;i<18;i++){
+        addP(burstPos.x,burstPos.y,burstPos.z,
+          (Math.random()-.5)*.045,(Math.random()-.5)*.045,(Math.random()-.5)*.045,
+          1,1,1, 0.050+Math.random()*0.045, 0.90+Math.random()*0.75);
+      }
       burst(burstPos.x, burstPos.y, burstPos.z,
             PALETTES[Math.floor(Math.random()*PALETTES.length)]);
     }
