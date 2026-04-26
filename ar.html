@@ -64,7 +64,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v10.0</div>
+<div class="ver">v10.1</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -715,7 +715,7 @@ function addCenterGlow(x, y, z){
 
 function showImageParticleShape(center, pixels, snapRight, snapUp, mode='illust'){
   const HALF = SHAPE_SCALE * 0.5;
-  const szB  = (mode==='line_art') ? 1.5 : (mode==='text_logo') ? 1.4 : (mode==='face_portrait') ? 1.0 : (mode==='photo_landscape') ? 0.85 : 1.0;
+  const szB  = (mode==='line_art') ? 0.80 : (mode==='text_logo') ? 0.60 : (mode==='face_portrait') ? 1.0 : (mode==='photo_landscape') ? 0.85 : 1.0;
   const isPhotoMode = (mode==='photo_landscape'||mode==='face_portrait');
   // 端末性能に応じた粒子上限（写真モードはさらに削減・他は1.3倍まで許容）
   const pixCap = isPhotoMode ? Math.floor(_IMG_MAX*0.40) : _IMG_MAX;
@@ -748,8 +748,12 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, mode='illust'
         cr=Math.min(1,cr*1.20+0.06); cg=Math.min(1,cg*1.20+0.06); cb=Math.min(1,cb*1.20+0.06);
       }
     }
-    // 写真モード：丸形粒子・サイズランダム幅広め / 線画・文字：シャープ均一
-    const pSize = isPhotoMode ? (0.06+Math.random()*0.09)*szB : (0.07+Math.random()*0.05)*szB;
+    // 線画・文字：細く均一（ランダム幅を狭めて線が滲まない） / 写真：丸く幅広
+    const pSize = isPhotoMode
+      ? (0.06+Math.random()*0.09)*szB
+      : (mode==='line_art'||mode==='text_logo')
+        ? (0.046+Math.random()*0.014)*szB
+        : (0.07+Math.random()*0.05)*szB;
     addDirP(
       center.x, center.y, center.z,
       tx, ty, tz,
