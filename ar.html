@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>花火AR</title>
+<title>らくがき花火大会</title>
+<meta name="description" content="らくがき花火大会 - きみの絵が夜空に咲く！おえかきが花火になるARアプリ">
+<meta property="og:title" content="らくがき花火大会">
+<meta property="og:description" content="きみの絵が夜空に咲く！おえかきが花火になるARアプリ">
+<meta name="twitter:title" content="らくがき花火大会">
+<meta name="twitter:description" content="きみの絵が夜空に咲く！おえかきが花火になるARアプリ">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -50,28 +55,50 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
          font:14px/1.4 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
          letter-spacing:.06em;white-space:nowrap;
          opacity:0;transition:opacity .35s;pointer-events:none;z-index:10001;}
+#app-title{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+           z-index:10001;pointer-events:none;text-align:center;white-space:nowrap;
+           background:rgba(0,0,0,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+           padding:10px 24px 9px;border-radius:22px;
+           border:1px solid rgba(255,200,60,.28);
+           box-shadow:0 0 20px rgba(255,100,0,.20);}
+.ttl-main{font:800 20px/1.25 'Hiragino Rounded Gothic ProN','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+          background:linear-gradient(90deg,#ffdd00 0%,#ff7700 40%,#ff3388 70%,#ffdd00 100%);
+          background-size:200% auto;
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+          letter-spacing:.13em;animation:tg 3.2s linear infinite;}
+@keyframes tg{to{background-position:200% center}}
+.ttl-sub{font:500 11px/1.4 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+         color:rgba(255,220,130,.88);letter-spacing:.09em;margin-top:3px;}
 </style>
 </head>
 <body>
 
 <video id="vid" autoplay playsinline muted></video>
-<div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
+
+<div id="app-title">
+  <div class="ttl-main">らくがき花火大会</div>
+  <div class="ttl-sub">きみの絵が夜空に咲く！</div>
+</div>
+
+<div id="ui"><span class="hint" id="hintTxt">タップして打ち上げよう！🎆</span></div>
 
 <div id="launchDir">
   <div class="ud-arrow">↑</div>
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div id="fw-hint">少し上を向いてね ✨</div>
+<div id="fw-hint">すこし上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
 <div class="ver">v9.5</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
-  <div style="font-size:14px;line-height:2;opacity:.85">
-    スマホを空に向けると<br>花火が空に見えます<br>
+  <div style="font-size:24px;font-weight:800;background:linear-gradient(90deg,#ffdd00,#ff7700,#ff3388);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.10em;margin-bottom:4px;">らくがき花火大会</div>
+  <div style="font-size:13px;color:rgba(255,220,130,.90);letter-spacing:.08em;margin-bottom:20px;">きみの絵が夜空に咲く！</div>
+  <div style="font-size:14px;line-height:2.1;opacity:.85">
+    スマホを空に向けると<br>花火が夜空に見えます<br>
     <small style="opacity:.6;font-size:11px">センサー使用を許可してください</small>
   </div>
-  <button class="pbtn" onclick="grantPerm()">許可して始める ▶</button>
+  <button class="pbtn" onclick="grantPerm()">許可してはじめる ▶</button>
 </div>
 
 <script>
