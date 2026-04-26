@@ -56,7 +56,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
   <div class="ud-label">打ち上げ中</div>
 </div>
 
-<div class="ver">v7.9b</div>
+<div class="ver">v7.9c</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -306,29 +306,71 @@ function makeImageData(url){
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const ar = img.width / img.height;
-      const PSIZ = 128; // 高解像度で細い線・文字を拾う
+      const PSIZ = 128;
       const pc = document.createElement('canvas');
       pc.width = pc.height = PSIZ;
       const pctx = pc.getContext('2d');
       let dw=PSIZ, dh=PSIZ;
       if(ar>1) dh=PSIZ/ar; else dw=PSIZ*ar;
       pctx.drawImage(img,(PSIZ-dw)/2,(PSIZ-dh)/2,dw,dh);
-      const pd = pctx.getImageData(0,0,PSIZ,PSIZ).data;
-      const pixels = [];
-      for(let py=0; py<PSIZ; py+=2){ // 2px 飛ばし
-        for(let px=0; px<PSIZ; px+=2){
+
+      const id0 = pctx.getImageData(0,0,PSIZ,PSIZ);
+      const d0  = id0.data;
+
+      // 有色ピクセル判定（白・透明を背景扱い）
+      function isColored(r,g,b,a){
+        return a>=20 && !(r>245&&g>245&&b>245);
+      }
+
+      // 有色率で線画か判定
+      let coloredCount=0;
+      for(let i=0;i<d0.length;i+=4){
+        if(isColored(d0[i],d0[i+1],d0[i+2],d0[i+3])) coloredCount++;
+      }
+      const isLineArt = (coloredCount/(PSIZ*PSIZ)) < 0.18;
+
+      // 線画のみ: 円形 dilation（半径3）で線を太らせる
+      let pd = d0;
+      if(isLineArt){
+        const R=3, out=new Uint8ClampedArray(d0);
+        for(let y=0;y<PSIZ;y++){
+          for(let x=0;x<PSIZ;x++){
+            const si=(y*PSIZ+x)*4;
+            if(!isColored(d0[si],d0[si+1],d0[si+2],d0[si+3])) continue;
+            for(let dy=-R;dy<=R;dy++){
+              for(let dx=-R;dx<=R;dx++){
+                if(dx*dx+dy*dy>R*R) continue;
+                const nx=x+dx, ny=y+dy;
+                if(nx<0||nx>=PSIZ||ny<0||ny>=PSIZ) continue;
+                const ni=(ny*PSIZ+nx)*4;
+                // 隣が背景のときだけ塗る（既存の有色ピクセルは保護）
+                if(!isColored(d0[ni],d0[ni+1],d0[ni+2],d0[ni+3])){
+                  out[ni]=d0[si]; out[ni+1]=d0[si+1];
+                  out[ni+2]=d0[si+2]; out[ni+3]=d0[si+3];
+                }
+              }
+            }
+          }
+        }
+        pd = out;
+      }
+
+      // ピクセルサンプリング（step=2）
+      const pixels=[];
+      for(let py=0;py<PSIZ;py+=2){
+        for(let px=0;px<PSIZ;px+=2){
           const i=(py*PSIZ+px)*4;
           const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
-          if(a<20) continue;                    // ほぼ透明のみ除外
-          if(r>245&&g>245&&b>245) continue;     // 純白のみ除外（薄い色は残す）
-          pixels.push({ nx:(px/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:r/255, g:g/255, b:b/255 });
+          if(!isColored(r,g,b,a)) continue;
+          pixels.push({nx:(px/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:r/255, g:g/255, b:b/255});
         }
       }
-      if(pixels.length>900){ pixels.sort(()=>Math.random()-.5); pixels.length=900; }
-      resolve(pixels);
+      if(pixels.length>900){pixels.sort(()=>Math.random()-.5); pixels.length=900;}
+
+      resolve({pixels, isLineArt});
     };
-    img.onerror = reject;
-    img.src = url;
+    img.onerror=reject;
+    img.src=url;
   });
 }
 
@@ -340,8 +382,9 @@ function makeImageData(url){
 const SHAPE_SCALE = 3.0;  // ワールド幅 [m]
 const SHAPE_HOLD  = 54;   // 静止フレーム数（~0.9秒）
 
-function showImageParticleShape(center, pixels, snapRight, snapUp){
-  const HALF = SHAPE_SCALE * 0.5;
+function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=false){
+  const HALF  = SHAPE_SCALE * 0.5;
+  const szB   = isLineArt ? 1.4 : 1.0; // 線画は粒子を大きめに
   for(const px of pixels){
     // 画像座標→ワールド座標（Y軸反転、Z方向に薄い厚み）
     const wx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF + (Math.random()-.5)*0.04;
@@ -362,7 +405,7 @@ function showImageParticleShape(center, pixels, snapRight, snapUp){
       Math.cos(phi)*sp*0.42           + outZ*centrifugal*0.28,
       px.r, px.g, px.b,
       0.005+Math.random()*0.006,
-      0.035+Math.random()*0.035,  // 小さく絞って形が読める大きさに
+      (0.035+Math.random()*0.035)*szB,  // 線画は1.4倍大きく
       SHAPE_HOLD);
   }
   // 爆発中心フラッシュ（hold なし）
@@ -449,7 +492,7 @@ function launchAnchorFirework(){
   if(works.length > 0){
     const work = works[Math.floor(Math.random()*works.length)];
     makeImageData(work.url)
-      .then(px => { imageData = px; })
+      .then(d => { imageData = d; })
       .catch(() => {});
   }
 
@@ -462,9 +505,9 @@ function launchAnchorFirework(){
     }
     setTimeout(()=>boom(), 55);
 
-    if(imageData && imageData.length > 0){
-      // 発光粒子で絵の形を描く→0.7秒静止→爆散
-      showImageParticleShape(burstPos, imageData, snapRight, snapUp);
+    if(imageData && imageData.pixels && imageData.pixels.length > 0){
+      // 発光粒子で絵の形を描く→0.9秒静止→爆散
+      showImageParticleShape(burstPos, imageData.pixels, snapRight, snapUp, imageData.isLineArt);
     } else {
       // 画像未取得: パレット花火にフォールバック
       burst(burstPos.x, burstPos.y, burstPos.z,
