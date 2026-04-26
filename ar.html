@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.4</div>
+<div class="ver">v8.4a</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -450,7 +450,7 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=fal
       tz + (Math.random()-.5)*0.10,
       px.r, px.g, px.b,
       extraSpeed,
-      (0.060+Math.random()*0.055)*szB,
+      (0.10+Math.random()*0.08)*szB,
       0.004+Math.random()*0.003  // 2.2〜4s で消える
     );
   }
