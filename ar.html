@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.9</div>
+<div class="ver">v8.9a</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -713,8 +713,8 @@ function whistle(){
     o1.frequency.setValueAtTime(350,now);
     o1.frequency.exponentialRampToValueAtTime(1200,now+dur);
     g1.gain.setValueAtTime(0.001,now);
-    g1.gain.exponentialRampToValueAtTime(0.14,now+0.08);
-    g1.gain.exponentialRampToValueAtTime(0.22,now+dur*0.85);
+    g1.gain.exponentialRampToValueAtTime(0.07,now+0.08);
+    g1.gain.exponentialRampToValueAtTime(0.11,now+dur*0.85);
     g1.gain.exponentialRampToValueAtTime(0.001,now+dur);
     o1.connect(g1); g1.connect(ctx.destination);
     o1.start(now); o1.stop(now+dur);
@@ -732,8 +732,8 @@ function whistle(){
     bpf.Q.value=0.8;
     const g2=ctx.createGain();
     g2.gain.setValueAtTime(0.001,now);
-    g2.gain.exponentialRampToValueAtTime(0.10,now+0.05);
-    g2.gain.exponentialRampToValueAtTime(0.18,now+dur*0.8);
+    g2.gain.exponentialRampToValueAtTime(0.05,now+0.05);
+    g2.gain.exponentialRampToValueAtTime(0.09,now+dur*0.8);
     g2.gain.exponentialRampToValueAtTime(0.001,now+dur);
     nSrc.connect(bpf); bpf.connect(g2); g2.connect(ctx.destination);
     nSrc.start(now); nSrc.stop(now+dur);
@@ -744,7 +744,7 @@ function whistle(){
     o3.frequency.setValueAtTime(90,now);
     o3.frequency.linearRampToValueAtTime(140,now+dur);
     g3.gain.setValueAtTime(0.001,now);
-    g3.gain.exponentialRampToValueAtTime(0.042,now+0.05);
+    g3.gain.exponentialRampToValueAtTime(0.020,now+0.05);
     g3.gain.exponentialRampToValueAtTime(0.001,now+dur);
     o3.connect(g3); g3.connect(ctx.destination);
     o3.start(now); o3.stop(now+dur);
@@ -755,7 +755,7 @@ function whistle(){
 function boom(){
   try{
     const ctx=getAu(), sr=ctx.sampleRate, now=ctx.currentTime;
-    const vol=0.30;
+    const vol=0.16;
 
     // ── Layer 1: 高域破裂音（即時）──
     const n1=Math.floor(sr*0.14);
