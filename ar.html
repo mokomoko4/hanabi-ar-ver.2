@@ -64,7 +64,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v9.6</div>
+<div class="ver">v9.7</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -439,81 +439,43 @@ function makeImageData(url){
       let pd;
       // face_portrait用：スキン重心から顔中心を推定（他モードはデフォルト値）
       let faceCX=PSIZ*0.5, faceCY=PSIZ*0.40, faceR=PSIZ*0.32;
+      let lpData=null, lpSZ=0; // 軽量写真モード用（LP×LP小キャンバス）
 
-      if(mode==='photo_landscape'){
-        // posterize 4段階 → 上位6色（大面・シルエット優先）
-        const PS4=64;
-        const p4=v=>Math.floor(v/PS4)*PS4+(PS4>>1);
-        const cmap=new Map();
-        for(let y=0;y<PSIZ;y++){
-          for(let x=0;x<PSIZ;x++){
-            const i=(y*PSIZ+x)*4;
-            if(d0[i+3]<15) continue;
-            const r=p4(d0[i]),g=p4(d0[i+1]),b=p4(d0[i+2]);
-            if(r>245&&g>245&&b>245) continue;
-            const key=(r<<16)|(g<<8)|b;
-            cmap.set(key,(cmap.get(key)||0)+1);
-          }
-        }
-        const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
-        const pout=new Uint8ClampedArray(d0.length);
-        for(let i=0;i<d0.length;i+=4){
-          const r=p4(d0[i]),g=p4(d0[i+1]),b=p4(d0[i+2]),a=d0[i+3];
-          if(a<15||(r>245&&g>245&&b>245)){pout[i+3]=0;continue;}
-          const key=(r<<16)|(g<<8)|b;
-          if(topColors.has(key)){pout[i]=r;pout[i+1]=g;pout[i+2]=b;pout[i+3]=a;}
-          else{pout[i+3]=0;}
-        }
-        pd=pout;
-      } else if(mode==='face_portrait'){
-        // posterize 4段階 + スキン重心で顔中心・半径を推定
-        const PS4=64;
-        const p4=v=>Math.floor(v/PS4)*PS4+(PS4>>1);
-        let sx=0,sy=0,sn=0;
-        for(let y=0;y<PSIZ;y++){
-          for(let x=0;x<PSIZ;x++){
-            const i=(y*PSIZ+x)*4;
-            const rv=d0[i]/255,gv=d0[i+1]/255,bv=d0[i+2]/255;
-            if(d0[i+3]<15) continue;
+      if(mode==='photo_landscape'||mode==='face_portrait'){
+        // 軽量抽象モード：LP×LPの小キャンバスで処理（エッジ検出なし）
+        const LP=80;
+        const lc=document.createElement('canvas'); lc.width=lc.height=LP;
+        const lctx=lc.getContext('2d');
+        let ldw=LP,ldh=LP;
+        if(ar>1) ldh=Math.round(LP/ar); else ldw=Math.round(LP*ar);
+        lctx.drawImage(img,(LP-ldw)/2,(LP-ldh)/2,ldw,ldh);
+        lpData=lctx.getImageData(0,0,LP,LP).data;
+        lpSZ=LP;
+        if(mode==='face_portrait'){
+          // LP解像度でスキン重心を計算
+          let sx=0,sy=0,sn=0;
+          for(let y=0;y<LP;y++) for(let x=0;x<LP;x++){
+            const i=(y*LP+x)*4;
+            const rv=lpData[i]/255,gv=lpData[i+1]/255,bv=lpData[i+2]/255;
+            if(lpData[i+3]<15) continue;
             if(rv>0.50&&gv>0.28&&bv>0.10&&rv>gv&&gv>bv&&rv-bv>0.15&&rv<0.96){sx+=x;sy+=y;sn++;}
           }
-        }
-        if(sn>40){
-          faceCX=sx/sn; faceCY=sy/sn;
-          let sr2=0;
-          for(let y=0;y<PSIZ;y++){
-            for(let x=0;x<PSIZ;x++){
-              const i=(y*PSIZ+x)*4;
-              const rv=d0[i]/255,gv=d0[i+1]/255,bv=d0[i+2]/255;
-              if(d0[i+3]<15) continue;
-              if(rv>0.50&&gv>0.28&&bv>0.10&&rv>gv&&gv>bv&&rv-bv>0.15&&rv<0.96){
+          if(sn>8){
+            faceCX=sx/sn; faceCY=sy/sn;
+            let sr2=0;
+            for(let y=0;y<LP;y++) for(let x=0;x<LP;x++){
+              const i=(y*LP+x)*4;
+              const rv=lpData[i]/255,gv=lpData[i+1]/255,bv=lpData[i+2]/255;
+              if(lpData[i+3]<15) continue;
+              if(rv>0.50&&gv>0.28&&bv>0.10&&rv>gv&&gv>bv&&rv-bv>0.15&&rv<0.96)
                 sr2+=(x-faceCX)**2+(y-faceCY)**2;
-              }
             }
-          }
-          faceR=Math.max(22,Math.min(62,Math.sqrt(sr2/sn)*2.0));
-        }
-        const cmap=new Map();
-        for(let y=0;y<PSIZ;y++){
-          for(let x=0;x<PSIZ;x++){
-            const i=(y*PSIZ+x)*4;
-            if(d0[i+3]<15) continue;
-            const r=p4(d0[i]),g=p4(d0[i+1]),b=p4(d0[i+2]);
-            if(r>245&&g>245&&b>245) continue;
-            const key=(r<<16)|(g<<8)|b;
-            cmap.set(key,(cmap.get(key)||0)+1);
+            faceR=Math.max(8,Math.min(28,Math.sqrt(sr2/sn)*2.0));
+          } else {
+            faceCX=LP*0.5; faceCY=LP*0.40; faceR=LP*0.32;
           }
         }
-        const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
-        const pout=new Uint8ClampedArray(d0.length);
-        for(let i=0;i<d0.length;i+=4){
-          const r=p4(d0[i]),g=p4(d0[i+1]),b=p4(d0[i+2]),a=d0[i+3];
-          if(a<15||(r>245&&g>245&&b>245)){pout[i+3]=0;continue;}
-          const key=(r<<16)|(g<<8)|b;
-          if(topColors.has(key)){pout[i]=r;pout[i+1]=g;pout[i+2]=b;pout[i+3]=a;}
-          else{pout[i+3]=0;}
-        }
-        pd=pout;
+        pd=d0; // 未使用プレースホルダ
       } else if(mode==='line_art'||mode==='text_logo'){
         // dilation で線を太らせる（line_art:R=3 / text_logo:R=2）
         const R=mode==='line_art'?3:2;
@@ -596,79 +558,59 @@ function makeImageData(url){
         pixels.sort(()=>Math.random()-.5);
         if(pixels.length>2500) pixels.length=2500;
       } else if(mode==='photo_landscape'){
-        // 色領域境界エッジ（地平線・山稜など）+ 面内部均等 → 景色シルエット強調
-        const edgePx=[], areaPx=[];
-        for(let py=0;py<PSIZ;py++){
-          for(let lpx=0;lpx<PSIZ;lpx++){
-            const i=(py*PSIZ+lpx)*4;
-            if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
-            const myKey=(pd[i]<<16)|(pd[i+1]<<8)|pd[i+2];
-            let onEdge=false;
-            outer:for(let ky=-1;ky<=1;ky++){
-              for(let kx=-1;kx<=1;kx++){
-                if(!kx&&!ky) continue;
-                const bx=lpx+kx, by=py+ky;
-                if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
-                const ni=(by*PSIZ+bx)*4;
-                const nKey=(pd[ni]<<16)|(pd[ni+1]<<8)|pd[ni+2];
-                if(nKey!==myKey){onEdge=true;break outer;}
-              }
-            }
-            const pobj={nx:(lpx/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:pd[i]/255, g:pd[i+1]/255, b:pd[i+2]/255};
-            if(onEdge) edgePx.push(pobj);
-            else if((py&1)===0&&(lpx&1)===0) areaPx.push(pobj);
-          }
+        // 軽量：lpDataをポスタリゼーション＋上位6色＋ランダムサンプリング（エッジ検出なし）
+        const P4=64, p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
+        const cmap=new Map();
+        for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
+          const i=(y*lpSZ+x)*4;
+          if(lpData[i+3]<15) continue;
+          const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
+          if(r>245&&g>245&&b>245) continue;
+          const key=(r<<16)|(g<<8)|b;
+          cmap.set(key,(cmap.get(key)||0)+1);
         }
-        edgePx.sort(()=>Math.random()-.5);
-        areaPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,800),...areaPx.slice(0,900));
-        pixels.sort(()=>Math.random()-.5);
-        if(pixels.length>1600) pixels.length=1600;
+        const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
+        for(let y=0;y<lpSZ;y+=2) for(let x=0;x<lpSZ;x+=2){
+          if(Math.random()>0.60) continue;
+          const i=(y*lpSZ+x)*4;
+          if(lpData[i+3]<15) continue;
+          const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
+          if(r>245&&g>245&&b>245) continue;
+          if(!topColors.has((r<<16)|(g<<8)|b)) continue;
+          pixels.push({nx:(x/lpSZ)*2-1, ny:(y/lpSZ)*2-1, r:r/255, g:g/255, b:b/255});
+        }
+        if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
       } else if(mode==='face_portrait'){
-        // 顔優先サンプリング：顔中心を花火の原点に再配置、背景は20%以下
-        const FNORM=faceR*1.4;           // 顔半径→[-1,1]正規化スケール
-        const FACE_THRESH=faceR*1.8;     // この距離内 = 顔領域（髪・頭部含む）
-        const faceEdgePx=[], faceAreaPx=[], bgPx=[];
-        for(let py=0;py<PSIZ;py++){
-          for(let lpx=0;lpx<PSIZ;lpx++){
-            const i=(py*PSIZ+lpx)*4;
-            if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
-            const myKey=(pd[i]<<16)|(pd[i+1]<<8)|pd[i+2];
-            const dfx=lpx-faceCX, dfy=py-faceCY;
-            const distFace=Math.sqrt(dfx*dfx+dfy*dfy);
-            const inFace=distFace<FACE_THRESH;
-            let onEdge=false;
-            outer:for(let ky=-1;ky<=1;ky++){
-              for(let kx=-1;kx<=1;kx++){
-                if(!kx&&!ky) continue;
-                const bx=lpx+kx, by=py+ky;
-                if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
-                const ni=(by*PSIZ+bx)*4;
-                const nKey=(pd[ni]<<16)|(pd[ni+1]<<8)|pd[ni+2];
-                if(nKey!==myKey){onEdge=true;break outer;}
-              }
-            }
-            // 顔中心を原点に再配置（nx=0が花火中央 = 顔の重心）
-            const pobj={
-              nx:Math.max(-1.5,Math.min(1.5,dfx/FNORM)),
-              ny:Math.max(-1.5,Math.min(1.5,dfy/FNORM)),
-              r:pd[i]/255, g:pd[i+1]/255, b:pd[i+2]/255
-            };
-            if(inFace){
-              if(onEdge) faceEdgePx.push(pobj);
-              else if((py&1)===0&&(lpx&1)===0) faceAreaPx.push(pobj);
-            } else if((py&3)===0&&(lpx&3)===0){
-              bgPx.push(pobj); // 背景はstep=4で間引き
-            }
-          }
+        // 軽量：lpDataをポスタリゼーション＋顔中心ベース座標＋確率サンプリング
+        const P4=64, p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
+        const FNORM=faceR*1.4;
+        const FACE_THRESH=faceR*1.8;
+        const cmap=new Map();
+        for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
+          const i=(y*lpSZ+x)*4;
+          if(lpData[i+3]<15) continue;
+          const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
+          if(r>245&&g>245&&b>245) continue;
+          const key=(r<<16)|(g<<8)|b;
+          cmap.set(key,(cmap.get(key)||0)+1);
         }
-        faceEdgePx.sort(()=>Math.random()-.5);
-        faceAreaPx.sort(()=>Math.random()-.5);
-        bgPx.sort(()=>Math.random()-.5);
-        // 顔エッジ700+顔内部900=1600、背景400(≤20%)
-        pixels.push(...faceEdgePx.slice(0,1000),...faceAreaPx.slice(0,1200),...bgPx.slice(0,500));
-        pixels.sort(()=>Math.random()-.5);
-        if(pixels.length>2500) pixels.length=2500;
+        const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
+        for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
+          const i=(y*lpSZ+x)*4;
+          if(lpData[i+3]<15) continue;
+          const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
+          if(r>245&&g>245&&b>245) continue;
+          if(!topColors.has((r<<16)|(g<<8)|b)) continue;
+          const dfx=x-faceCX, dfy=y-faceCY;
+          const inFace=Math.sqrt(dfx*dfx+dfy*dfy)<FACE_THRESH;
+          if(!( inFace ? Math.random()<0.72 : Math.random()<0.18 )) continue;
+          pixels.push({
+            nx:Math.max(-1.5,Math.min(1.5,dfx/FNORM)),
+            ny:Math.max(-1.5,Math.min(1.5,dfy/FNORM)),
+            r:r/255, g:g/255, b:b/255
+          });
+        }
+        if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
       } else {
         for(let py=0;py<PSIZ;py+=2){
           for(let lpx=0;lpx<PSIZ;lpx+=2){
