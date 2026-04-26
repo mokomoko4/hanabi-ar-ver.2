@@ -63,7 +63,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 </div>
 
 <div id="fw-hint">少し上を向いてね ✨</div>
-<div class="ver">v8.3</div>
+<div class="ver">v8.4</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -188,7 +188,7 @@ geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 // モバイル判定 + DPR 補正サイズブースト
 const _dpr      = Math.min(window.devicePixelRatio || 1, 3);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 2.2 : 1.2;
+const _sizeBoost = _isMobile ? _dpr * 3.2 : 1.5;
 
 const mat = new THREE.ShaderMaterial({
   uniforms: { uSizeBoost: { value: _sizeBoost } },
@@ -204,7 +204,7 @@ const mat = new THREE.ShaderMaterial({
       // 輝度が高い粒子ほど少し大きく（発光感）
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(8.0, aS*uSizeBoost*szMod*(680.0/-mv.z));
+      gl_PointSize=max(10.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -317,7 +317,7 @@ function burst(x, y, z, pal){
       Math.sin(phi)*Math.cos(theta)*sp,
       Math.sin(phi)*Math.sin(theta)*sp,
       Math.cos(phi)*sp*0.58+zFwd,
-      c[0],c[1],c[2], 0.004+Math.random()*0.006, 0.44+Math.random()*0.46);
+      c[0],c[1],c[2], 0.004+Math.random()*0.006, 0.65+Math.random()*0.60);
   }
   // 白フラッシュ
   for(let i=0; i<24; i++){
@@ -450,7 +450,7 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, isLineArt=fal
       tz + (Math.random()-.5)*0.10,
       px.r, px.g, px.b,
       extraSpeed,
-      (0.040+Math.random()*0.040)*szB,
+      (0.060+Math.random()*0.055)*szB,
       0.004+Math.random()*0.003  // 2.2〜4s で消える
     );
   }
