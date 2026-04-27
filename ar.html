@@ -64,7 +64,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v0.6</div>
+<div class="ver">v0.7</div>
 <button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
 <div id="perm">
   <div style="font-size:14px;line-height:2;opacity:.85">
@@ -1022,7 +1022,7 @@ function whistle(){
     const sb=ctx.createBufferSource(); sb.buffer=bb;
     const lpb=ctx.createBiquadFilter(); lpb.type='lowpass'; lpb.frequency.value=200; lpb.Q.value=4.0;
     const gb=ctx.createGain();
-    gb.gain.setValueAtTime(0.44,now);
+    gb.gain.setValueAtTime(0.21,now);
     gb.gain.exponentialRampToValueAtTime(0.001,now+0.12);
     sb.connect(lpb); lpb.connect(gb); gb.connect(ctx.destination);
     sb.start(now);
@@ -1033,8 +1033,8 @@ function whistle(){
     o1.frequency.exponentialRampToValueAtTime(2400,now+dur);
     const g1=ctx.createGain();
     g1.gain.setValueAtTime(0.001,now);
-    g1.gain.linearRampToValueAtTime(0.28,now+0.07);
-    g1.gain.setValueAtTime(0.28,now+dur*0.84);
+    g1.gain.linearRampToValueAtTime(0.10,now+0.07);
+    g1.gain.setValueAtTime(0.10,now+dur*0.84);
     g1.gain.exponentialRampToValueAtTime(0.001,now+dur);
     o1.connect(g1); g1.connect(ctx.destination);
     o1.start(now); o1.stop(now+dur+0.05);
@@ -1045,8 +1045,8 @@ function whistle(){
     o2.frequency.exponentialRampToValueAtTime(2412,now+dur);
     const g2=ctx.createGain();
     g2.gain.setValueAtTime(0.001,now);
-    g2.gain.linearRampToValueAtTime(0.14,now+0.09);
-    g2.gain.setValueAtTime(0.14,now+dur*0.80);
+    g2.gain.linearRampToValueAtTime(0.05,now+0.09);
+    g2.gain.setValueAtTime(0.05,now+dur*0.80);
     g2.gain.exponentialRampToValueAtTime(0.001,now+dur);
     o2.connect(g2); g2.connect(ctx.destination);
     o2.start(now+0.01); o2.stop(now+dur+0.05);
@@ -1063,8 +1063,8 @@ function whistle(){
     bpf.Q.value=1.2;
     const gn=ctx.createGain();
     gn.gain.setValueAtTime(0.001,now);
-    gn.gain.linearRampToValueAtTime(0.055,now+0.06);
-    gn.gain.setValueAtTime(0.055,now+dur*0.65);
+    gn.gain.linearRampToValueAtTime(0.019,now+0.06);
+    gn.gain.setValueAtTime(0.019,now+dur*0.65);
     gn.gain.exponentialRampToValueAtTime(0.001,now+dur);
     nSrc.connect(bpf); bpf.connect(gn); gn.connect(ctx.destination);
     nSrc.start(now); nSrc.stop(now+dur);
