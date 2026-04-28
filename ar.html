@@ -97,7 +97,7 @@ db.ref('works').on('value', snap => {
   const data = snap.val() || {};
   const newWorks = Object.entries(data)
     .map(([k,v]) => ({id:k,...v}))
-    .filter(w => w.type === 'png' && w.url);
+    .filter(w => w.type === 'png' && w.url && w.visible !== false);
   // 追加分だけプリキャッシュ
   newWorks.forEach(w => {
     if(!imageCache[w.url]){

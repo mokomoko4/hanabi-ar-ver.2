@@ -135,7 +135,15 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .work-info{flex:1;min-width:0;}
 .work-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .work-meta{font-size:10px;color:var(--muted);margin-top:2px;}
-.work-delete{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,100,100,0.3);background:transparent;color:rgba(255,100,100,0.7);font-size:11px;cursor:pointer;flex-shrink:0;}
+/* トグルスイッチ */
+.toggle-wrap{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.toggle-label{font-size:10px;color:var(--muted);white-space:nowrap;}
+.toggle{position:relative;display:inline-block;width:38px;height:22px;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,0.15);border-radius:22px;cursor:pointer;transition:0.2s;}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.2s;}
+.toggle input:checked + .toggle-slider{background:rgba(100,220,120,0.7);}
+.toggle input:checked + .toggle-slider:before{transform:translateX(16px);}
 </style>
 </head>
 <body>
@@ -495,25 +503,31 @@ db.ref('works').on('value', (snap) => {
       ? `<img src="${work.url}" style="width:100%;height:100%;object-fit:cover;">`
       : `<span style="font-size:24px;">🖼️</span>`;
     const date = new Date(work.createdAt).toLocaleDateString('ja-JP');
+    const isVisible = work.visible !== false;
     item.innerHTML = `
       <div class="work-thumb">${thumb}</div>
       <div class="work-info">
         <div class="work-name">${work.name || 'なまえなし'}</div>
         <div class="work-meta">${work.type.toUpperCase()} · ${date}</div>
       </div>
-      <button class="work-delete" onclick="deleteWork('${key}', '${work.url}')">削除</button>
+      <div class="toggle-wrap">
+        <span class="toggle-label">${isVisible ? 'AR表示中' : '非表示'}</span>
+        <label class="toggle">
+          <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleVisible('${key}', this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
     `;
     list.appendChild(item);
   });
 });
 
-// 削除
-async function deleteWork(key, url) {
-  if(!confirm('この作品を削除しますか？')) return;
-  await db.ref('works/' + key).remove();
-  try {
-    await storage.refFromURL(url).delete();
-  } catch(e) {}
+// 表示トグル
+async function toggleVisible(key, checkbox) {
+  const visible = checkbox.checked;
+  const label = checkbox.closest('.toggle-wrap').querySelector('.toggle-label');
+  label.textContent = visible ? 'AR表示中' : '非表示';
+  await db.ref('works/' + key).update({ visible });
 }
 </script>
 </body>
