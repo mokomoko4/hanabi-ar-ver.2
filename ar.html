@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.4-screen</div>
+<div class="ver">v1.5-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -136,7 +136,7 @@ geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 3.2 : 5.0;
+const _sizeBoost = _isMobile ? _dpr * 3.2 : 2.5;
 const _hwc      = navigator.hardwareConcurrency || 4;
 const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
