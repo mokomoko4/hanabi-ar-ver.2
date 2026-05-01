@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.3-screen</div>
+<div class="ver">v1.4-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -493,7 +493,7 @@ function makeImageData(url){
 // ══════════════════════════════════════════════
 // 画像形状パーティクル
 // ══════════════════════════════════════════════
-const SHAPE_SCALE=3.5;
+const SHAPE_SCALE=7.0;
 const _DARK_PAL=[
   [1.00,.86,.47],[1.00,.63,.31],[1.00,.47,.71],[.63,.86,1.00],[1.00,1.00,.90],
 ];
@@ -538,7 +538,7 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
         cr=Math.min(1,cr*1.20+.06);cg=Math.min(1,cg*1.20+.06);cb=Math.min(1,cb*1.20+.06);
       }
     }
-    const pSize=isPhotoMode?(0.06+Math.random()*.09)*szB:(0.07+Math.random()*.05)*szB;
+    const pSize=isPhotoMode?(0.03+Math.random()*.045)*szB:(0.035+Math.random()*.025)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
       0.004+Math.random()*.003,isPhotoMode?1:0);
   }
