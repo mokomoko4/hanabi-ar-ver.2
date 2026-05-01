@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.0-screen</div>
+<div class="ver">v1.1-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -607,6 +607,7 @@ function showAnnouncement(name){
 // ══════════════════════════════════════════════
 let _workIndex=0;
 let _autoScheduled=false;
+let _lastXOff=0;
 const SNAP_RIGHT=new THREE.Vector3(1,0,0);
 const SNAP_UP   =new THREE.Vector3(0,1,0);
 
@@ -617,7 +618,10 @@ function scheduleNextLaunch(ms){
 }
 
 function triggerNextFirework(){
-  const xOff =(Math.random()-.5)*12;
+  // 直前の位置から最低7ユニット離れた位置を選ぶ
+  let xOff;
+  do { xOff=(Math.random()-.5)*18; } while(Math.abs(xOff-_lastXOff)<7);
+  _lastXOff=xOff;
   const zDist=-14;
   const bPos =new THREE.Vector3(xOff, -1+Math.random()*3, zDist);
   const lPos =new THREE.Vector3(xOff+(Math.random()-.5)*1.5, -8, zDist);
