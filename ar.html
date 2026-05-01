@@ -136,7 +136,7 @@ geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 3.2 : 2.4;
+const _sizeBoost = _isMobile ? _dpr * 3.2 : 5.0;
 const _hwc      = navigator.hardwareConcurrency || 4;
 const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
@@ -493,7 +493,7 @@ function makeImageData(url){
 // ══════════════════════════════════════════════
 // 画像形状パーティクル
 // ══════════════════════════════════════════════
-const SHAPE_SCALE=5.0;
+const SHAPE_SCALE=7.0;
 const _DARK_PAL=[
   [1.00,.86,.47],[1.00,.63,.31],[1.00,.47,.71],[.63,.86,1.00],[1.00,1.00,.90],
 ];
@@ -619,8 +619,8 @@ function scheduleNextLaunch(ms){
 function triggerNextFirework(){
   const xOff =(Math.random()-.5)*12;
   const zDist=-14;
-  const bPos =new THREE.Vector3(xOff, 2+Math.random()*4, zDist);
-  const lPos =new THREE.Vector3(xOff+(Math.random()-.5)*1.5, -6, zDist);
+  const bPos =new THREE.Vector3(xOff, -1+Math.random()*3, zDist);
+  const lPos =new THREE.Vector3(xOff+(Math.random()-.5)*1.5, -8, zDist);
 
   if(works.length===0){
     launchVector(lPos,bPos,PALETTES[Math.floor(Math.random()*PALETTES.length)],null);
