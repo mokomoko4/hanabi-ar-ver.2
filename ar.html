@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.9-screen</div>
+<div class="ver">v2.0-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -138,8 +138,8 @@ geo.setAttribute('aT',       new THREE.BufferAttribute(bT,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoostBurst = _isMobile ? _dpr * 3.2 : 5.0;  // 爆発：迫力重視
-const _sizeBoostImage = _isMobile ? _dpr * 1.2 : 1.5;  // 絵：線幅重視
+const _sizeBoostBurst = _isMobile ? _dpr * 0.32 : 0.55;  // 爆発：~30px/spark
+const _sizeBoostImage = _isMobile ? _dpr * 0.42 : 0.75;  // 絵：~2-3px/粒子
 const _hwc      = navigator.hardwareConcurrency || 4;
 const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
