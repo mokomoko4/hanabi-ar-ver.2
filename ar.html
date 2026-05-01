@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.5-screen</div>
+<div class="ver">v1.4-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -166,10 +166,11 @@ const mat = new THREE.ShaderMaterial({
         vec3 col=clamp(vC*(1.0+inner*2.8),0.,1.);
         gl_FragColor=vec4(col,a);
       } else {
-        float core=1.-smoothstep(.0,.18,d);
-        float glow=1.-smoothstep(.0,.38,d);
-        float a=(core*.95+glow*.22)*vA; if(a<.01)discard;
-        vec3 col=clamp(vC*(1.+core*4.2+glow*0.6),0.,1.);
+        float core=1.-smoothstep(.0,.22,d);
+        float glow=1.-smoothstep(.0,.60,d);
+        float halo=1.-smoothstep(.18,1.,d);
+        float a=(core*.95+glow*.42+halo*.20)*vA; if(a<.01)discard;
+        vec3 col=clamp(vC*(1.+core*4.2+glow*1.1),0.,1.);
         gl_FragColor=vec4(col,a);
       }
     }`,
