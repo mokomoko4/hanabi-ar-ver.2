@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.8-screen</div>
+<div class="ver">v1.9-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -126,6 +126,7 @@ const bC = new Float32Array(MAX*3);
 const bA = new Float32Array(MAX);
 const bS = new Float32Array(MAX);
 const bR = new Float32Array(MAX);
+const bT = new Float32Array(MAX); // 0=爆発粒子 1=絵粒子
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -133,25 +134,32 @@ geo.setAttribute('aC',       new THREE.BufferAttribute(bC,3));
 geo.setAttribute('aA',       new THREE.BufferAttribute(bA,1));
 geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
+geo.setAttribute('aT',       new THREE.BufferAttribute(bT,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 3.2 : 1.5;
+const _sizeBoostBurst = _isMobile ? _dpr * 3.2 : 5.0;  // 爆発：迫力重視
+const _sizeBoostImage = _isMobile ? _dpr * 1.2 : 1.5;  // 絵：線幅重視
 const _hwc      = navigator.hardwareConcurrency || 4;
 const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
 const mat = new THREE.ShaderMaterial({
-  uniforms: { uSizeBoost: { value: _sizeBoost } },
+  uniforms: {
+    uSizeBoost:    { value: _sizeBoostBurst },
+    uSizeBoostImg: { value: _sizeBoostImage },
+  },
   vertexShader:`
     uniform float uSizeBoost;
-    attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR;
+    uniform float uSizeBoostImg;
+    attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR; attribute float aT;
     varying vec3 vC; varying float vA; varying float vR;
     void main(){
       vC=aC; vA=aA; vR=aR;
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(2.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      float boost=mix(uSizeBoost, uSizeBoostImg, aT);
+      gl_PointSize=max(2.0, aS*boost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -186,10 +194,10 @@ scene.add(_pts);
 // パーティクル状態
 // ══════════════════════════════════════════════
 const ps = [];
-function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0){
-  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round});
+function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0, type=0){
+  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round,type});
 }
-function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
+function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0, type=0){
   const dx=tx-sx, dy=ty-sy, dz=tz-sz;
   const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
   const nx=dx/len, ny=dy/len, nz=dz/len;
@@ -198,7 +206,7 @@ function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
   const vy=ny*totalSpeed+(Math.random()-.5)*0.008;
   const vz=nz*totalSpeed+(Math.random()-.5)*0.008;
   const adv=Math.random()*5;
-  addP(sx+vx*adv, sy+vy*adv, sz+vz*adv, vx,vy,vz, r,g,b, decay, s, 0, round);
+  addP(sx+vx*adv, sy+vy*adv, sz+vz*adv, vx,vy,vz, r,g,b, decay, s, 0, round, type);
 }
 
 function updateParticles(){
@@ -218,7 +226,7 @@ function updateParticles(){
     if(effS<0.028) continue;
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
-    bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0;
+    bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0; bT[cnt]=p.type||0;
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -228,6 +236,7 @@ function updateParticles(){
   geo.attributes.aA.needsUpdate=true;
   geo.attributes.aS.needsUpdate=true;
   geo.attributes.aR.needsUpdate=true;
+  geo.attributes.aT.needsUpdate=true;
 }
 
 // ══════════════════════════════════════════════
@@ -540,7 +549,7 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
     }
     const pSize=isPhotoMode?(0.03+Math.random()*.045)*szB:(0.035+Math.random()*.025)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
-      0.004+Math.random()*.003,isPhotoMode?1:0);
+      0.004+Math.random()*.003,isPhotoMode?1:0, 1);
   }
   for(let i=0;i<2;i++){
     addP(center.x,center.y,center.z,
