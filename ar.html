@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.7-screen</div>
+<div class="ver">v1.4-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -522,11 +522,11 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
     const tx=center.x+snapRight.x*px.nx*HALF+snapUp.x*(-px.ny)*HALF;
     const ty=center.y+snapRight.y*px.nx*HALF+snapUp.y*(-px.ny)*HALF;
     const tz=center.z+snapRight.z*px.nx*HALF+snapUp.z*(-px.ny)*HALF;
-    // 形の位置に直接配置 → holdフレーム静止 → 外側へ散る
-    const dx=tx-center.x,dy=ty-center.y,dz=tz-center.z;
-    const dlen=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
-    const outSpeed=0.038+Math.random()*.028;
-    const holdF=10+Math.floor(Math.random()*12);
+    const dist=Math.sqrt(px.nx*px.nx+px.ny*px.ny);
+    const extraFrac=(mode==='line_art')?0.03+dist*.05+Math.random()*.05
+      :(mode==='text_logo')?0.05+dist*.08+Math.random()*.07
+      :(mode==='photo_landscape'||mode==='face_portrait')?0.04+dist*.06+Math.random()*.06
+      :0.25+dist*.18+Math.random()*.20;
     let cr,cg,cb;
     if(mode==='face_portrait'){
       const brF=px.r*.299+px.g*.587+px.b*.114;
@@ -539,11 +539,8 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
       }
     }
     const pSize=isPhotoMode?(0.03+Math.random()*.045)*szB:(0.035+Math.random()*.025)*szB;
-    addP(tx,ty,tz,
-      (dx/dlen)*outSpeed+(Math.random()-.5)*.008,
-      (dy/dlen)*outSpeed+(Math.random()-.5)*.008,
-      (dz/dlen)*outSpeed+(Math.random()-.5)*.008,
-      cr,cg,cb, 0.004+Math.random()*.003, pSize, holdF, isPhotoMode?1:0);
+    addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
+      0.004+Math.random()*.003,isPhotoMode?1:0);
   }
   for(let i=0;i<2;i++){
     addP(center.x,center.y,center.z,
