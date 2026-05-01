@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v1.4-screen</div>
+<div class="ver">v1.8-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -136,7 +136,7 @@ geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 3.2 : 5.0;
+const _sizeBoost = _isMobile ? _dpr * 3.2 : 1.5;
 const _hwc      = navigator.hardwareConcurrency || 4;
 const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
@@ -151,7 +151,7 @@ const mat = new THREE.ShaderMaterial({
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(10.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      gl_PointSize=max(2.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
