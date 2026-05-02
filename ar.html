@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.3</div>
+<div class="ver">v1.4</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -308,11 +308,14 @@ function makeImageData(url){
       }
 
       // ── メトリクス計算 ──────────────────────────────
-      let coloredCount=0;
+      let coloredCount=0, whiteCount=0;
       for(let i=0;i<d0.length;i+=4){
-        if(isColored(d0[i],d0[i+1],d0[i+2],d0[i+3])) coloredCount++;
+        const r=d0[i],g=d0[i+1],b=d0[i+2],a=d0[i+3];
+        if(isColored(r,g,b,a)) coloredCount++;
+        else if(a>=15&&r>248&&g>248&&b>248) whiteCount++;
       }
       const coloredRatio=coloredCount/(PSIZ*PSIZ);
+      const whiteRatio=whiteCount/(PSIZ*PSIZ);
 
       // エッジ密度（水平+垂直輝度勾配）
       let edgeCount=0;
@@ -336,20 +339,25 @@ function makeImageData(url){
       const colorVariety=cset.size;
 
       // ── モード分類（4モード）─────────────────────────
+      const isTextLike   = colorVariety<32&&edgeDensity>0.05&&coloredRatio>0.02&&coloredRatio<0.65;
+      const isLineArtLike= coloredRatio<0.22;
+      const looksCharacter=
+        whiteRatio>0.20&&
+        coloredRatio>=0.05&&coloredRatio<=0.55&&
+        colorVariety>=6&&colorVariety<=85&&
+        !isTextLike&&!isLineArtLike;
+
       let mode;
-      // text_logo: 文字・ロゴ・記号（色数極少＋エッジはっきり）
-      if(colorVariety<32&&edgeDensity>0.05&&coloredRatio>0.02&&coloredRatio<0.65){
+      if(isTextLike){
         mode='text_logo';
-      // line_art: 線画・落書き（白背景多い・塗り少ない）
-      } else if(coloredRatio<0.22){
+      } else if(isLineArtLike){
         mode='line_art';
-      // character: キャラ絵・動物・マスコット（面あり・色数少〜中）
-      } else if(coloredRatio>=0.06&&coloredRatio<=0.75&&colorVariety<=90){
+      } else if(looksCharacter){
         mode='character';
       } else {
         mode='illust';
       }
-      console.log('[hanabi]',{mode,coloredRatio:+coloredRatio.toFixed(3),edgeDensity:+edgeDensity.toFixed(3),colorVariety});
+      console.log('[hanabi]',{mode,whiteRatio:+whiteRatio.toFixed(3),coloredRatio:+coloredRatio.toFixed(3),edgeDensity:+edgeDensity.toFixed(3),colorVariety});
 
       // ── ピクセルデータ ──────────────────────────────
       const pd=d0;
@@ -469,7 +477,7 @@ function makeImageData(url){
 
       // デバッグ表示
       const dbg=document.getElementById('pxdbg');
-      if(dbg) dbg.textContent=`${mode} px:${pixels.length} e:${edgeDensity.toFixed(2)} v:${colorVariety} cr:${coloredRatio.toFixed(2)}`;
+      if(dbg) dbg.textContent=`${mode} px:${pixels.length} wr:${whiteRatio.toFixed(2)} cr:${coloredRatio.toFixed(2)} v:${colorVariety}`;
 
       resolve({pixels, mode});
     };
