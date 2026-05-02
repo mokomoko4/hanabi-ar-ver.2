@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v2.4-screen</div>
+<div class="ver">v2.5-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -126,6 +126,7 @@ const bC = new Float32Array(MAX*3);
 const bA = new Float32Array(MAX);
 const bS = new Float32Array(MAX);
 const bR = new Float32Array(MAX);
+const bVel = new Float32Array(MAX*3); // 速度（ストリーク用）
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -133,6 +134,7 @@ geo.setAttribute('aC',       new THREE.BufferAttribute(bC,3));
 geo.setAttribute('aA',       new THREE.BufferAttribute(bA,1));
 geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
+geo.setAttribute('aVel',     new THREE.BufferAttribute(bVel,3));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -147,7 +149,9 @@ const mat = new THREE.ShaderMaterial({
   vertexShader:`
     uniform float uSizeBoost;
     attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR;
+    attribute vec3 aVel;
     varying vec3 vC; varying float vA; varying float vR;
+    varying vec2 vStreak;
     void main(){
       vC=aC; vA=aA; vR=aR;
       vec4 mv=modelViewMatrix*vec4(position,1.);
@@ -155,11 +159,29 @@ const mat = new THREE.ShaderMaterial({
       float szMod=0.82+lum*0.36;
       gl_PointSize=max(2.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
+      // 速度方向をスクリーン座標に投影してストリーク方向を計算
+      vec4 mvAhead=modelViewMatrix*vec4(position+aVel*2.5,1.);
+      vec4 pA=projectionMatrix*mvAhead;
+      vec2 dir=(pA.xy/pA.w)-(gl_Position.xy/gl_Position.w);
+      float spd=length(dir);
+      vStreak=spd>0.001 ? normalize(dir)*min(spd*20.0,0.42) : vec2(0.0);
     }`,
   fragmentShader:`
     varying vec3 vC; varying float vA; varying float vR;
+    varying vec2 vStreak;
     void main(){
-      float d=length(gl_PointCoord-vec2(.5))*2.;
+      vec2 uv=gl_PointCoord-vec2(0.5);
+      float streakAmt=length(vStreak);
+      float d;
+      if(vR>0.5 || streakAmt<0.02){
+        d=length(uv)*2.0;
+      } else {
+        vec2 sd=vStreak/streakAmt;
+        float along=dot(uv,sd);
+        float perp=dot(uv,vec2(-sd.y,sd.x));
+        float elong=1.0+streakAmt*5.0;
+        d=length(vec2(along/elong,perp*2.5))*2.0;
+      }
       if(vR>0.5){
         if(d>1.0) discard;
         float soft=smoothstep(1.0,0.15,d);
@@ -221,6 +243,7 @@ function updateParticles(){
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
     bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0;
+    bVel[cnt*3]=p.vx; bVel[cnt*3+1]=p.vy; bVel[cnt*3+2]=p.vz;
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -230,6 +253,7 @@ function updateParticles(){
   geo.attributes.aA.needsUpdate=true;
   geo.attributes.aS.needsUpdate=true;
   geo.attributes.aR.needsUpdate=true;
+  geo.attributes.aVel.needsUpdate=true;
 }
 
 // ══════════════════════════════════════════════
