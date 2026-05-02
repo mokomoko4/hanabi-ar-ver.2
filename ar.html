@@ -3,82 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>花火AR</title>
+<title>花火スクリーン</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;}
-video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
-canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
-#ui{position:fixed;bottom:0;left:0;right:0;padding-bottom:46px;z-index:10001;
-    pointer-events:none;display:flex;justify-content:center;}
-.hint{font:13px/1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-      color:rgba(255,255,255,.7);letter-spacing:.07em;
-      text-shadow:0 2px 14px rgba(0,0,0,.95);
-      animation:hp 3s ease-in-out infinite;}
-@keyframes hp{0%,100%{opacity:.4}55%{opacity:.95}}
-.ver{position:fixed;bottom:8px;right:12px;z-index:10001;
-     font:10px/1 monospace;color:rgba(255,255,255,.28);pointer-events:none;}
-#launchDir{position:fixed;top:0;left:0;right:0;z-index:10001;pointer-events:none;
-           display:flex;flex-direction:column;align-items:center;padding-top:22px;gap:4px;
-           opacity:0;transition:opacity .2s;}
-#launchDir.show{opacity:1;}
-.ud-arrow{font:40px/1 sans-serif;color:#ffdd00;
-          text-shadow:0 0 20px #ff8800,0 0 40px #ff4400;
-          animation:udb .55s ease-in-out infinite;}
-@keyframes udb{0%,100%{transform:translateY(4px);}50%{transform:translateY(-6px);}}
-.ud-label{font:11px/1 'Hiragino Kaku Gothic ProN',sans-serif;
-          color:rgba(255,220,80,.9);letter-spacing:.12em;
-          text-shadow:0 2px 12px rgba(255,120,0,.9);}
-#xrbtn{position:fixed;top:18px;right:16px;z-index:10001;pointer-events:auto;
-       padding:8px 18px;border:1px solid rgba(255,255,255,.3);
-       background:rgba(0,0,0,.45);border-radius:20px;color:#fff;
-       font-size:12px;cursor:pointer;display:none;
-       font-family:'Hiragino Kaku Gothic ProN',sans-serif;}
-#perm{position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.88);display:none;
-      flex-direction:column;align-items:center;justify-content:center;
-      gap:22px;padding:40px;text-align:center;color:#fff;
-      font:13px/1.9 'Hiragino Kaku Gothic ProN',sans-serif;}
-.pbtn{padding:13px 36px;border:none;border-radius:14px;
-      background:linear-gradient(135deg,#ff6b00,#ffcc00);
-      color:#000;font-size:15px;font-weight:900;cursor:pointer;}
-#fw-hint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
-         background:rgba(0,0,0,.62);color:#fff;
-         padding:9px 22px;border-radius:24px;
-         font:14px/1.4 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-         letter-spacing:.06em;white-space:nowrap;
-         opacity:0;transition:opacity .35s;pointer-events:none;z-index:10001;}
+canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
+
+#sky{position:fixed;inset:0;z-index:0;
+     background:radial-gradient(ellipse at 50% 110%, #0d0030 0%, #050018 45%, #000008 100%);}
+
+/* スタート画面 */
+#startScreen{position:fixed;inset:0;z-index:200;background:rgba(0,0,10,.93);
+             display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
+#startScreen h1{font:bold 30px/1.5 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+                color:#fff;text-align:center;letter-spacing:.1em;
+                text-shadow:0 0 40px rgba(255,180,50,.9);}
+#worksCount{font:14px/1.8 'Hiragino Kaku Gothic ProN',sans-serif;
+            color:rgba(255,220,150,.8);letter-spacing:.06em;}
+.startBtn{padding:16px 52px;border:none;border-radius:50px;
+          background:linear-gradient(135deg,#ff6b00,#ffcc00);
+          color:#000;font-size:18px;font-weight:900;cursor:pointer;
+          font-family:'Hiragino Kaku Gothic ProN',sans-serif;letter-spacing:.1em;
+          box-shadow:0 0 30px rgba(255,150,0,.6),0 4px 20px rgba(0,0,0,.4);
+          transition:transform .15s,box-shadow .15s;}
+.startBtn:hover{box-shadow:0 0 50px rgba(255,180,0,.8),0 4px 20px rgba(0,0,0,.4);}
+.startBtn:active{transform:scale(.96);}
+
+/* アナウンス */
+#announce{position:fixed;inset:0;z-index:150;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+          pointer-events:none;opacity:0;transition:opacity .5s;}
+#announce.show{opacity:1;}
+.ann-sub{font:15px/1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+         color:rgba(255,210,80,.9);letter-spacing:.3em;
+         text-shadow:0 0 16px rgba(255,160,0,.9);}
+.ann-name{font:bold 60px/1.1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+          color:#fff;letter-spacing:.05em;text-align:center;max-width:90vw;
+          text-shadow:0 0 40px rgba(255,200,50,1),0 0 80px rgba(255,100,0,.8),0 0 130px rgba(180,60,255,.5);
+          animation:ann-pulse .7s ease-in-out infinite;}
+@keyframes ann-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+.ann-suffix{font:30px/1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+            color:rgba(255,220,100,.9);letter-spacing:.1em;
+            text-shadow:0 0 20px rgba(255,180,0,.8);}
+
+.ver{position:fixed;bottom:8px;right:12px;z-index:300;
+     font:10px/1 monospace;color:rgba(255,255,255,.18);pointer-events:none;}
 </style>
 </head>
 <body>
 
-<video id="vid" autoplay playsinline muted></video>
-<div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
+<div id="sky"></div>
 
-<div id="launchDir">
-  <div class="ud-arrow">↑</div>
-  <div class="ud-label">打ち上げ中</div>
+<div id="startScreen">
+  <h1>🎆 花火スクリーン 🎆</h1>
+  <div id="worksCount">作品を読み込み中...</div>
+  <button class="startBtn" onclick="startShow()">ショーを開始 ▶</button>
 </div>
 
-<div id="fw-hint">少し上を向いてね ✨</div>
-<div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v0.7</div>
-<button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
-<div id="perm">
-  <div style="font-size:14px;line-height:2;opacity:.85">
-    スマホを空に向けると<br>花火が空に見えます<br>
-    <small style="opacity:.6;font-size:11px">センサー使用を許可してください</small>
-  </div>
-  <button class="pbtn" onclick="grantPerm()">許可して始める ▶</button>
+<div id="announce">
+  <div class="ann-sub">✦ 次の花火 ✦</div>
+  <div class="ann-name" id="annName"></div>
+  <div class="ann-suffix">の花火！</div>
 </div>
+
+<div class="ver">v3.5-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
 // Firebase
 // ══════════════════════════════════════════════
-
 firebase.initializeApp({
   apiKey:"AIzaSyDGlQeMC6iJzWAB16teP_5oC2FeBcgZxmA",
   authDomain:"hanabi-ar-1754a.firebaseapp.com",
@@ -91,34 +87,28 @@ firebase.initializeApp({
 const db = firebase.database();
 
 let works = [];
-const imageCache = {}; // url → {pixels, mode}
+const imageCache = {};
 
 db.ref('works').on('value', snap => {
   const data = snap.val() || {};
   const newWorks = Object.entries(data)
     .map(([k,v]) => ({id:k,...v}))
     .filter(w => w.type === 'png' && w.url && w.visible !== false);
-  // 追加分だけプリキャッシュ
   newWorks.forEach(w => {
     if(!imageCache[w.url]){
-      makeImageData(w.url)
-        .then(d => { imageCache[w.url] = d; })
-        .catch(() => {});
+      makeImageData(w.url).then(d => { imageCache[w.url] = d; }).catch(()=>{});
     }
   });
   works = newWorks;
-  if(works.length > 0){
-    document.getElementById('hintTxt').textContent =
-      `タップで絵を花火に！🎆 (${works.length}作品)`;
-  }
+  const el = document.getElementById('worksCount');
+  if(el) el.textContent = works.length > 0 ? `${works.length}作品が読み込まれました` : '作品を読み込み中...';
 });
 
 // ══════════════════════════════════════════════
 // Three.js セットアップ
 // ══════════════════════════════════════════════
-
 const ren = new THREE.WebGLRenderer({alpha:true, antialias:true});
-ren.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Retina過剰解像度を抑制
+ren.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 ren.setSize(innerWidth, innerHeight);
 ren.setClearColor(0x000000, 0);
 document.body.appendChild(ren.domElement);
@@ -128,69 +118,15 @@ const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 500);
 cam.position.set(0, 0, 0);
 
 // ══════════════════════════════════════════════
-// カメラ映像
-// ══════════════════════════════════════════════
-
-const vid = document.getElementById('vid');
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: {ideal:'environment'}, width: {ideal:1280} }
-})
-.then(s => { vid.srcObject = s; vid.play().catch(()=>{}); })
-.catch(() => { vid.style.display='none'; document.body.style.background='#04001a'; });
-
-// ══════════════════════════════════════════════
-// 打ち上げ方向インジケーター
-// ══════════════════════════════════════════════
-
-const arrowHelper = new THREE.ArrowHelper(
-  new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0),
-  8, 0xffcc00, 1.0, 0.5
-);
-arrowHelper.line.material.blending    = THREE.AdditiveBlending;
-arrowHelper.line.material.transparent = true;
-arrowHelper.cone.material.blending    = THREE.AdditiveBlending;
-arrowHelper.cone.material.transparent = true;
-arrowHelper.visible = false;
-scene.add(arrowHelper);
-
-let arrowFrames = 0;
-const launchDirEl = document.getElementById('launchDir');
-
-function showLaunchIndicator(start, end){
-  const dir = end.clone().sub(start).normalize();
-  const len = start.distanceTo(end);
-  arrowHelper.position.copy(start);
-  arrowHelper.setDirection(dir);
-  arrowHelper.setLength(len, Math.min(1.2,len*.15), Math.min(0.55,len*.07));
-  arrowHelper.visible = true;
-  arrowHelper.line.material.opacity = 0.85;
-  arrowHelper.cone.material.opacity = 0.85;
-  arrowFrames = 100;
-  launchDirEl.classList.add('show');
-}
-
-function updateArrowIndicator(){
-  if(arrowFrames <= 0){
-    arrowHelper.visible = false;
-    launchDirEl.classList.remove('show');
-    return;
-  }
-  arrowFrames--;
-  const t = arrowFrames / 100;
-  arrowHelper.line.material.opacity = 0.85 * t;
-  arrowHelper.cone.material.opacity = 0.85 * t;
-}
-
-// ══════════════════════════════════════════════
 // パーティクル GPU バッファ
 // ══════════════════════════════════════════════
-
 const MAX = 8000;
 const bP = new Float32Array(MAX*3);
 const bC = new Float32Array(MAX*3);
 const bA = new Float32Array(MAX);
 const bS = new Float32Array(MAX);
-const bR = new Float32Array(MAX); // 0=sharp(線画・文字), 1=round(写真・顔)
+const bR = new Float32Array(MAX);
+const bPMin = new Float32Array(MAX).fill(6.0); // モード別PointSize下限
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -198,31 +134,29 @@ geo.setAttribute('aC',       new THREE.BufferAttribute(bC,3));
 geo.setAttribute('aA',       new THREE.BufferAttribute(bA,1));
 geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
+geo.setAttribute('aPMin',    new THREE.BufferAttribute(bPMin,1));
 
-// モバイル判定 + DPR 補正サイズブースト
-const _dpr      = Math.min(window.devicePixelRatio || 1, 1.5); // pixelRatioと揃える（粒子サイズ整合）
+const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-const _sizeBoost = _isMobile ? _dpr * 3.2 : 1.5;
-
-// 端末性能判定：画像花火のピクセル上限を自動調整
-const _hwc     = navigator.hardwareConcurrency || 4;
-const _IMG_MAX = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
+const _sizeBoost = _isMobile ? _dpr * 0.8 : 1.5;
+const _hwc      = navigator.hardwareConcurrency || 4;
+const _IMG_MAX  = _hwc <= 4 ? 500 : _hwc <= 8 ? 900 : 1400;
 
 const mat = new THREE.ShaderMaterial({
-  uniforms: { uSizeBoost: { value: _sizeBoost } },
+  uniforms: {
+    uSizeBoost: { value: _sizeBoost },
+  },
   vertexShader:`
     uniform float uSizeBoost;
-    attribute vec3 aC;
-    attribute float aA;
-    attribute float aS;
-    attribute float aR;
+    attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR;
+    attribute float aPMin;
     varying vec3 vC; varying float vA; varying float vR;
     void main(){
       vC=aC; vA=aA; vR=aR;
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(10.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      gl_PointSize=max(aPMin, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -230,27 +164,22 @@ const mat = new THREE.ShaderMaterial({
     void main(){
       float d=length(gl_PointCoord-vec2(.5))*2.;
       if(vR>0.5){
-        // 写真・顔モード：柔らかい円形光粒（四角モザイク感を除去）
         if(d>1.0) discard;
         float soft=smoothstep(1.0,0.15,d);
         float inner=smoothstep(0.45,0.0,d);
-        float a=soft*vA;
-        if(a<0.01) discard;
+        float a=soft*vA; if(a<0.01) discard;
         vec3 col=clamp(vC*(1.0+inner*2.8),0.,1.);
         gl_FragColor=vec4(col,a);
       } else {
-        // 線画・文字・通常モード：シャープ発光粒子
         float core=1.-smoothstep(.0,.22,d);
         float glow=1.-smoothstep(.0,.60,d);
         float halo=1.-smoothstep(.18,1.,d);
-        float a=(core*.95+glow*.42+halo*.20)*vA;
-        if(a<.01)discard;
+        float a=(core*.95+glow*.42+halo*.20)*vA; if(a<.01)discard;
         vec3 col=clamp(vC*(1.+core*4.2+glow*1.1),0.,1.);
         gl_FragColor=vec4(col,a);
       }
     }`,
-  transparent:true, blending:THREE.AdditiveBlending,
-  depthWrite:false, depthTest:false
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false
 });
 geo.setDrawRange(0,0);
 const _pts = new THREE.Points(geo, mat);
@@ -259,53 +188,41 @@ _pts.renderOrder   = 999;
 scene.add(_pts);
 
 // ══════════════════════════════════════════════
-// パーティクル状態配列
-// hold > 0 の間はその場に静止し、0になって初めて飛散・フェードを開始
+// パーティクル状態
 // ══════════════════════════════════════════════
-
 const ps = [];
-function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0){
-  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round});
+function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0, pMin=6.0){
+  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round,pMin});
 }
-
-// 画像形状用：center→target を全粒子ほぼ同タイミングで通過して外側へ飛ぶ
-// extraFrac を乗算にすることで、内側・外側ともに (18/(1+extraFrac)) フレームで到達。
-// 加算 extraSpeed だと内側ピクセルが極端に早く通過し、形が同時に形成されない。
-// DRAG_FACTOR = (1-0.983^18)/0.017 ≈ 15.5
-function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
+function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0, pMin=6.0){
   const dx=tx-sx, dy=ty-sy, dz=tz-sz;
-  const len = Math.sqrt(dx*dx+dy*dy+dz*dz) || 0.001;
+  const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
   const nx=dx/len, ny=dy/len, nz=dz/len;
-  const totalSpeed = (len / 15.5) * (1 + extraFrac);
+  const totalSpeed=(len/160.0)*(1+extraFrac);
   const vx=nx*totalSpeed+(Math.random()-.5)*0.008;
   const vy=ny*totalSpeed+(Math.random()-.5)*0.008;
   const vz=nz*totalSpeed+(Math.random()-.5)*0.008;
-  // 0〜5フレーム分の事前オフセット：全粒子が中心に集中する初期blobを解消
-  const adv=Math.random()*5;
-  addP(sx+vx*adv, sy+vy*adv, sz+vz*adv, vx,vy,vz, r,g,b, decay, s, 0, round);
+  addP(sx,sy,sz, vx,vy,vz, r,g,b, decay, s, 0, round, pMin);
 }
 
 function updateParticles(){
-  let cnt = 0;
+  let cnt=0;
   for(let i=ps.length-1; i>=0; i--){
-    const p = ps[i];
-    if(p.hold > 0){
-      p.hold--;
-    } else {
+    const p=ps[i];
+    if(p.hold>0){ p.hold--; }
+    else {
       p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
-      p.vy -= 0.0014;
-      p.vx *= 0.983; p.vy *= 0.983; p.vz *= 0.968;
-      p.a  -= p.decay;
-      // 早期除去（a<0.04は視覚上不可視）＋O(1)swap-pop除去でspliceのO(n)シフトを廃止
-      if(p.a < 0.04){ ps[i]=ps[ps.length-1]; ps.pop(); continue; }
+      p.vy-=0.0014;
+      p.vx*=0.983; p.vy*=0.983; p.vz*=0.968;
+      p.a-=p.decay;
+      if(p.a<0.04){ ps[i]=ps[ps.length-1]; ps.pop(); continue; }
     }
-    if(cnt >= MAX) continue;
-    const effS = p.s*(0.75 + p.a*0.25);
-    if(effS < 0.028) continue; // 実効サイズが微小な粒子はGPUバッファをスキップ
+    if(cnt>=MAX) continue;
+    const effS=p.s*(0.75+p.a*0.25);
+    if(effS<0.028) continue;
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
-    bA[cnt]=p.a;   bS[cnt]=effS;
-    bR[cnt]=p.round||0;
+    bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0; bPMin[cnt]=p.pMin||6.0;
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -315,12 +232,12 @@ function updateParticles(){
   geo.attributes.aA.needsUpdate=true;
   geo.attributes.aS.needsUpdate=true;
   geo.attributes.aR.needsUpdate=true;
+  geo.attributes.aPMin.needsUpdate=true;
 }
 
 // ══════════════════════════════════════════════
-// カラーパレット（画像なし時のフォールバック）
+// カラーパレット（作品なし時のフォールバック）
 // ══════════════════════════════════════════════
-
 const PALETTES = [
   [[1,.22,.05],[1,.55,.1],[1,.9,.2],[1,1,1]],
   [[.12,.38,1],[.45,.72,1],[.8,.9,1],[1,1,1]],
@@ -333,86 +250,59 @@ const PALETTES = [
 // ══════════════════════════════════════════════
 // 通常爆発（フォールバック）
 // ══════════════════════════════════════════════
-
-function burst(x, y, z, pal){
-  // 中心閃光：極短命の白〜黄大粒子
-  for(let i=0; i<10; i++){
-    const flashC = Math.random()<0.5 ? [1,1,1] : [1,0.95,0.4];
-    addP(x,y,z,
-      (Math.random()-.5)*.012,(Math.random()-.5)*.012,(Math.random()-.5)*.012,
-      flashC[0],flashC[1],flashC[2], 0.22+Math.random()*0.08, 1.8+Math.random()*0.9);
+function burst(x,y,z,pal){
+  for(let i=0;i<10;i++){
+    const fc=Math.random()<.5?[1,1,1]:[1,.95,.4];
+    addP(x,y,z,(Math.random()-.5)*.012,(Math.random()-.5)*.012,(Math.random()-.5)*.012,
+      fc[0],fc[1],fc[2],0.22+Math.random()*0.08,1.8+Math.random()*.9);
   }
-  // メイン爆発粒子
-  for(let i=0; i<380; i++){
+  for(let i=0;i<380;i++){
     const theta=Math.random()*Math.PI*2, phi=Math.acos(2*Math.random()-1);
     const sp=0.058+Math.random()*0.132;
-    const zFwd=(Math.random()<0.15)?0.072+Math.random()*0.055:0;
+    const zFwd=Math.random()<.15?0.072+Math.random()*.055:0;
     const c=pal[Math.floor(Math.random()*pal.length)];
-    addP(x,y,z,
-      Math.sin(phi)*Math.cos(theta)*sp,
-      Math.sin(phi)*Math.sin(theta)*sp,
-      Math.cos(phi)*sp*0.58+zFwd,
-      c[0],c[1],c[2], 0.004+Math.random()*0.006, 0.65+Math.random()*0.60);
+    addP(x,y,z,Math.sin(phi)*Math.cos(theta)*sp,Math.sin(phi)*Math.sin(theta)*sp,
+      Math.cos(phi)*sp*.58+zFwd,c[0],c[1],c[2],0.004+Math.random()*.006,0.65+Math.random()*.60);
   }
-  // 白フラッシュ
-  for(let i=0; i<24; i++){
-    addP(x,y,z,
-      (Math.random()-.5)*.025,(Math.random()-.5)*.025,(Math.random()-.5)*.025,
-      1,1,1, 0.060+Math.random()*0.050, 0.85+Math.random()*0.75);
+  for(let i=0;i<24;i++){
+    addP(x,y,z,(Math.random()-.5)*.025,(Math.random()-.5)*.025,(Math.random()-.5)*.025,
+      1,1,1,0.060+Math.random()*.050,0.85+Math.random()*.75);
   }
-  // 中心残光（0.8秒間、見失い防止）
-  addCenterGlow(x, y, z);
-  setTimeout(()=>boom(), 55);
+  addCenterGlow(x,y,z);
+  setTimeout(()=>boom(),55);
 }
 
 // ══════════════════════════════════════════════
-// 画像データ取得（表示用テクスチャ + 散布用ピクセル）
+// 画像データ取得
 // ══════════════════════════════════════════════
-
 function makeImageData(url){
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const ar = img.width / img.height;
-      const PSIZ = 224;
-      const pc = document.createElement('canvas');
-      pc.width = pc.height = PSIZ;
-      const pctx = pc.getContext('2d');
-      let dw=PSIZ, dh=PSIZ;
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>{
+      const ar=img.width/img.height;
+      const PSIZ=224;
+      const pc=document.createElement('canvas'); pc.width=pc.height=PSIZ;
+      const pctx=pc.getContext('2d');
+      let dw=PSIZ,dh=PSIZ;
       if(ar>1) dh=PSIZ/ar; else dw=PSIZ*ar;
       pctx.drawImage(img,(PSIZ-dw)/2,(PSIZ-dh)/2,dw,dh);
+      const id0=pctx.getImageData(0,0,PSIZ,PSIZ); const d0=id0.data;
+      function isColored(r,g,b,a){ return a>=15&&!(r>248&&g>248&&b>248); }
 
-      const id0 = pctx.getImageData(0,0,PSIZ,PSIZ);
-      const d0  = id0.data;
-
-      // 有色ピクセル判定：透明(a<15)と純白(r/g/b>248)のみ背景扱い
-      // 黒線・薄ピンク・黄色・水色はすべて残す
-      function isColored(r,g,b,a){
-        return a>=15 && !(r>248&&g>248&&b>248);
-      }
-
-      // ── メトリクス計算 ──────────────────────────────
       let coloredCount=0;
-      for(let i=0;i<d0.length;i+=4){
-        if(isColored(d0[i],d0[i+1],d0[i+2],d0[i+3])) coloredCount++;
-      }
+      for(let i=0;i<d0.length;i+=4) if(isColored(d0[i],d0[i+1],d0[i+2],d0[i+3])) coloredCount++;
       const coloredRatio=coloredCount/(PSIZ*PSIZ);
 
-      // エッジ密度（水平+垂直輝度勾配）
       let edgeCount=0;
-      for(let y=0;y<PSIZ-1;y++){
-        for(let x=0;x<PSIZ-1;x++){
-          const i=(y*PSIZ+x)*4;
-          const lum =d0[i  ]*0.299+d0[i+1]*0.587+d0[i+2]*0.114;
-          const lumR=d0[i+4]*0.299+d0[i+5]*0.587+d0[i+6]*0.114;
-          const lumD=d0[i+PSIZ*4]*0.299+d0[i+PSIZ*4+1]*0.587+d0[i+PSIZ*4+2]*0.114;
-          if(Math.abs(lum-lumR)+Math.abs(lum-lumD)>25) edgeCount++;
-        }
+      for(let y=0;y<PSIZ-1;y++) for(let x=0;x<PSIZ-1;x++){
+        const i=(y*PSIZ+x)*4;
+        const lum=d0[i]*.299+d0[i+1]*.587+d0[i+2]*.114;
+        const lumR=d0[i+4]*.299+d0[i+5]*.587+d0[i+6]*.114;
+        const lumD=d0[i+PSIZ*4]*.299+d0[i+PSIZ*4+1]*.587+d0[i+PSIZ*4+2]*.114;
+        if(Math.abs(lum-lumR)+Math.abs(lum-lumD)>25) edgeCount++;
       }
       const edgeDensity=edgeCount/((PSIZ-1)*(PSIZ-1));
 
-      // 色多様性（4bitグリッド）
       const cset=new Set();
       for(let i=0;i<d0.length;i+=4*6){
         if(d0[i+3]<15) continue;
@@ -420,56 +310,38 @@ function makeImageData(url){
       }
       const colorVariety=cset.size;
 
-      // 肌色率（顔・人物判定）
       let skinCount=0;
       for(let i=0;i<d0.length;i+=4*3){
         const r=d0[i]/255,g=d0[i+1]/255,b=d0[i+2]/255;
         if(d0[i+3]<15) continue;
-        if(r>0.50&&g>0.28&&b>0.10&&r>g&&g>b&&r-b>0.15&&r<0.96) skinCount++;
+        if(r>.50&&g>.28&&b>.10&&r>g&&g>b&&r-b>.15&&r<.96) skinCount++;
       }
       const skinRatio=skinCount*3/(PSIZ*PSIZ);
 
-      // ── 4モード分類 ─────────────────────────────────
       let mode;
-      if(skinRatio>0.07&&coloredRatio>0.25){
-        mode='face_portrait';
-      } else if(colorVariety>90&&coloredRatio>0.45){
-        mode='photo_landscape';
-      } else if(colorVariety<48&&edgeDensity>0.06&&coloredRatio>0.04&&coloredRatio<0.60){
-        mode='text_logo';
-      } else if(coloredRatio<0.25){
-        mode='line_art';
-      } else {
-        mode='illust';
-      }
-      console.log(`[hanabi] mode=${mode} colored=${coloredRatio.toFixed(2)} edge=${edgeDensity.toFixed(2)} variety=${colorVariety} skin=${skinRatio.toFixed(2)}`);
+      if(skinRatio>.07&&coloredRatio>.25) mode='face_portrait';
+      else if(colorVariety>90&&coloredRatio>.45) mode='photo_landscape';
+      else if(colorVariety<48&&edgeDensity>.06&&coloredRatio>.04&&coloredRatio<.60) mode='text_logo';
+      else if(coloredRatio<.25) mode='line_art';
+      else mode='illust';
 
-      // ── モード別前処理 ───────────────────────────────
-      const PSTEP=Math.floor(256/5);
-      const post=v=>Math.floor(v/PSTEP)*PSTEP+Math.floor(PSTEP/2);
-      let pd;
-      // face_portrait用：スキン重心から顔中心を推定（他モードはデフォルト値）
-      let faceCX=PSIZ*0.5, faceCY=PSIZ*0.40, faceR=PSIZ*0.32;
-      let lpData=null, lpSZ=0; // 軽量写真モード用（LP×LP小キャンバス）
+      let pd, faceCX=PSIZ*.5, faceCY=PSIZ*.40, faceR=PSIZ*.32, lpData=null, lpSZ=0;
 
       if(mode==='photo_landscape'||mode==='face_portrait'){
-        // 軽量抽象モード：LP×LPの小キャンバスで処理（エッジ検出なし）
         const LP=80;
         const lc=document.createElement('canvas'); lc.width=lc.height=LP;
         const lctx=lc.getContext('2d');
         let ldw=LP,ldh=LP;
         if(ar>1) ldh=Math.round(LP/ar); else ldw=Math.round(LP*ar);
         lctx.drawImage(img,(LP-ldw)/2,(LP-ldh)/2,ldw,ldh);
-        lpData=lctx.getImageData(0,0,LP,LP).data;
-        lpSZ=LP;
+        lpData=lctx.getImageData(0,0,LP,LP).data; lpSZ=LP;
         if(mode==='face_portrait'){
-          // LP解像度でスキン重心を計算
           let sx=0,sy=0,sn=0;
           for(let y=0;y<LP;y++) for(let x=0;x<LP;x++){
             const i=(y*LP+x)*4;
             const rv=lpData[i]/255,gv=lpData[i+1]/255,bv=lpData[i+2]/255;
             if(lpData[i+3]<15) continue;
-            if(rv>0.50&&gv>0.28&&bv>0.10&&rv>gv&&gv>bv&&rv-bv>0.15&&rv<0.96){sx+=x;sy+=y;sn++;}
+            if(rv>.50&&gv>.28&&bv>.10&&rv>gv&&gv>bv&&rv-bv>.15&&rv<.96){sx+=x;sy+=y;sn++;}
           }
           if(sn>8){
             faceCX=sx/sn; faceCY=sy/sn;
@@ -478,642 +350,396 @@ function makeImageData(url){
               const i=(y*LP+x)*4;
               const rv=lpData[i]/255,gv=lpData[i+1]/255,bv=lpData[i+2]/255;
               if(lpData[i+3]<15) continue;
-              if(rv>0.50&&gv>0.28&&bv>0.10&&rv>gv&&gv>bv&&rv-bv>0.15&&rv<0.96)
+              if(rv>.50&&gv>.28&&bv>.10&&rv>gv&&gv>bv&&rv-bv>.15&&rv<.96)
                 sr2+=(x-faceCX)**2+(y-faceCY)**2;
             }
             faceR=Math.max(8,Math.min(28,Math.sqrt(sr2/sn)*2.0));
-          } else {
-            faceCX=LP*0.5; faceCY=LP*0.40; faceR=LP*0.32;
-          }
+          } else { faceCX=LP*.5; faceCY=LP*.40; faceR=LP*.32; }
         }
-        pd=d0; // 未使用プレースホルダ
+        pd=d0;
       } else if(mode==='line_art'||mode==='text_logo'){
-        // dilation：両モードとも膨張なし（元ストローク幅をそのまま使用）
-        const R=0;
-        const out=new Uint8ClampedArray(d0);
-        for(let y=0;y<PSIZ;y++){
-          for(let x=0;x<PSIZ;x++){
-            const si=(y*PSIZ+x)*4;
-            if(!isColored(d0[si],d0[si+1],d0[si+2],d0[si+3])) continue;
-            for(let dy=-R;dy<=R;dy++){
-              for(let dx=-R;dx<=R;dx++){
-                if(dx*dx+dy*dy>R*R) continue;
-                const nx=x+dx,ny=y+dy;
-                if(nx<0||nx>=PSIZ||ny<0||ny>=PSIZ) continue;
-                const ni=(ny*PSIZ+nx)*4;
-                if(!isColored(d0[ni],d0[ni+1],d0[ni+2],d0[ni+3])){
-                  out[ni]=d0[si];out[ni+1]=d0[si+1];out[ni+2]=d0[si+2];out[ni+3]=d0[si+3];
-                }
-              }
+        const R=0; const out=new Uint8ClampedArray(d0);
+        for(let y=0;y<PSIZ;y++) for(let x=0;x<PSIZ;x++){
+          const si=(y*PSIZ+x)*4;
+          if(!isColored(d0[si],d0[si+1],d0[si+2],d0[si+3])) continue;
+          for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
+            if(dx*dx+dy*dy>R*R) continue;
+            const nx=x+dx,ny=y+dy;
+            if(nx<0||nx>=PSIZ||ny<0||ny>=PSIZ) continue;
+            const ni=(ny*PSIZ+nx)*4;
+            if(!isColored(d0[ni],d0[ni+1],d0[ni+2],d0[ni+3])){
+              out[ni]=d0[si];out[ni+1]=d0[si+1];out[ni+2]=d0[si+2];out[ni+3]=d0[si+3];
             }
           }
         }
         pd=out;
-      } else {
-        pd=d0;
-      }
+      } else { pd=d0; }
 
-      // ── ピクセルサンプリング ─────────────────────────
       const pixels=[];
       if(mode==='line_art'){
-        // エッジ優先：線の輪郭画素(step=1全数) + 内部画素(step=2間引き)
-        const edgePx=[], interPx=[];
-        for(let py=0;py<PSIZ;py++){
-          for(let lpx=0;lpx<PSIZ;lpx++){
-            const i=(py*PSIZ+lpx)*4;
-            if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
-            let onEdge=false;
-            outer:for(let ky=-1;ky<=1;ky++){
-              for(let kx=-1;kx<=1;kx++){
-                if(!kx&&!ky) continue;
-                const bx=lpx+kx, by=py+ky;
-                if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
-                const ni=(by*PSIZ+bx)*4;
-                if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])){onEdge=true;break outer;}
-              }
-            }
-            const pobj={nx:(lpx/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:pd[i]/255, g:pd[i+1]/255, b:pd[i+2]/255};
-            if(onEdge) edgePx.push(pobj);
-            else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
+        const edgePx=[],interPx=[];
+        for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
+          const i=(py*PSIZ+lpx)*4;
+          if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
+          let onEdge=false;
+          outer:for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+            if(!kx&&!ky) continue;
+            const bx=lpx+kx,by=py+ky;
+            if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
+            const ni=(by*PSIZ+bx)*4;
+            if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])){onEdge=true;break outer;}
           }
+          const pobj={nx:(lpx/PSIZ)*2-1,ny:(py/PSIZ)*2-1,r:pd[i]/255,g:pd[i+1]/255,b:pd[i+2]/255};
+          if(onEdge) edgePx.push(pobj);
+          else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5);
-        interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1400),...interPx.slice(0,600));
-        pixels.sort(()=>Math.random()-.5);
-        if(pixels.length>2000) pixels.length=2000;
+        pixels.push(...edgePx.slice(0,900),...interPx.slice(0,80));
+        if(pixels.length>980) pixels.length=980;
       } else if(mode==='text_logo'){
-        // エッジ+内部バランス：文字の輪郭＋塗りを均等に埋めて読みやすさ確保
-        const edgePx=[], interPx=[];
-        for(let py=0;py<PSIZ;py++){
-          for(let lpx=0;lpx<PSIZ;lpx++){
-            const i=(py*PSIZ+lpx)*4;
-            if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
-            let onEdge=false;
-            outer:for(let ky=-1;ky<=1;ky++){
-              for(let kx=-1;kx<=1;kx++){
-                if(!kx&&!ky) continue;
-                const bx=lpx+kx, by=py+ky;
-                if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
-                const ni=(by*PSIZ+bx)*4;
-                if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])){onEdge=true;break outer;}
-              }
-            }
-            const pobj={nx:(lpx/PSIZ)*2-1, ny:(py/PSIZ)*2-1, r:pd[i]/255, g:pd[i+1]/255, b:pd[i+2]/255};
-            if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
+        const edgePx=[],interPx=[];
+        for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
+          const i=(py*PSIZ+lpx)*4;
+          if(!isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) continue;
+          let onEdge=false;
+          outer:for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+            if(!kx&&!ky) continue;
+            const bx=lpx+kx,by=py+ky;
+            if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
+            const ni=(by*PSIZ+bx)*4;
+            if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])){onEdge=true;break outer;}
           }
+          const pobj={nx:(lpx/PSIZ)*2-1,ny:(py/PSIZ)*2-1,r:pd[i]/255,g:pd[i+1]/255,b:pd[i+2]/255};
+          if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
         }
-        edgePx.sort(()=>Math.random()-.5);
-        interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1500),...interPx.slice(0,1500));
-        pixels.sort(()=>Math.random()-.5);
-        if(pixels.length>2500) pixels.length=2500;
+        edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
+        pixels.push(...edgePx.slice(0,1100),...interPx.slice(0,320));
+        if(pixels.length>1420) pixels.length=1420;
       } else if(mode==='photo_landscape'){
-        // 軽量：lpDataをポスタリゼーション＋上位6色＋ランダムサンプリング（エッジ検出なし）
-        const P4=64, p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
+        const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
         const cmap=new Map();
         for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
-          const i=(y*lpSZ+x)*4;
-          if(lpData[i+3]<15) continue;
+          const i=(y*lpSZ+x)*4; if(lpData[i+3]<15) continue;
           const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
           if(r>245&&g>245&&b>245) continue;
-          const key=(r<<16)|(g<<8)|b;
-          cmap.set(key,(cmap.get(key)||0)+1);
+          const key=(r<<16)|(g<<8)|b; cmap.set(key,(cmap.get(key)||0)+1);
         }
         const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
         for(let y=0;y<lpSZ;y+=2) for(let x=0;x<lpSZ;x+=2){
-          const nx=(x/lpSZ)*2-1, ny=(y/lpSZ)*2-1;
-          const dist=Math.sqrt(nx*nx+ny*ny);
-          if(dist>1.0) continue; // 円の外は除外
-          // smoothstep(1.0→0, 0.2→1): 中心ほど高確率、縁ほど徐々に間引く
+          const nx=(x/lpSZ)*2-1,ny=(y/lpSZ)*2-1;
+          const dist=Math.sqrt(nx*nx+ny*ny); if(dist>1.0) continue;
           const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
-          if(Math.random()>t*t*(3-2*t)*0.75) continue;
-          const i=(y*lpSZ+x)*4;
-          if(lpData[i+3]<15) continue;
+          if(Math.random()>t*t*(3-2*t)*.75) continue;
+          const i=(y*lpSZ+x)*4; if(lpData[i+3]<15) continue;
           const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
           if(r>245&&g>245&&b>245) continue;
           if(!topColors.has((r<<16)|(g<<8)|b)) continue;
-          pixels.push({nx, ny, r:r/255, g:g/255, b:b/255});
+          pixels.push({nx,ny,r:r/255,g:g/255,b:b/255});
         }
-        if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
+        if(pixels.length>700){pixels.sort(()=>Math.random()-.5);pixels.length=700;}
       } else if(mode==='face_portrait'){
-        // 軽量：lpDataをポスタリゼーション＋顔中心ベース座標＋確率サンプリング
-        const P4=64, p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
-        const FNORM=faceR*1.4;
-        const FACE_THRESH=faceR*1.8;
+        const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
+        const FNORM=faceR*1.4,FACE_THRESH=faceR*1.8;
         const cmap=new Map();
         for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
-          const i=(y*lpSZ+x)*4;
-          if(lpData[i+3]<15) continue;
+          const i=(y*lpSZ+x)*4; if(lpData[i+3]<15) continue;
           const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
           if(r>245&&g>245&&b>245) continue;
-          const key=(r<<16)|(g<<8)|b;
-          cmap.set(key,(cmap.get(key)||0)+1);
+          const key=(r<<16)|(g<<8)|b; cmap.set(key,(cmap.get(key)||0)+1);
         }
         const topColors=new Set([...cmap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k])=>k));
         for(let y=0;y<lpSZ;y++) for(let x=0;x<lpSZ;x++){
-          const i=(y*lpSZ+x)*4;
-          if(lpData[i+3]<15) continue;
+          const i=(y*lpSZ+x)*4; if(lpData[i+3]<15) continue;
           const r=p4v(lpData[i]),g=p4v(lpData[i+1]),b=p4v(lpData[i+2]);
           if(r>245&&g>245&&b>245) continue;
           if(!topColors.has((r<<16)|(g<<8)|b)) continue;
-          const dfx=x-faceCX, dfy=y-faceCY;
+          const dfx=x-faceCX,dfy=y-faceCY;
           const inFace=Math.sqrt(dfx*dfx+dfy*dfy)<FACE_THRESH;
           const nx=Math.max(-1.5,Math.min(1.5,dfx/FNORM));
           const ny=Math.max(-1.5,Math.min(1.5,dfy/FNORM));
           const normDist=Math.sqrt(nx*nx+ny*ny);
-          // 顔領域は半径1.3、背景は半径1.0で打ち切り（四隅カット）
-          if(normDist > (inFace ? 1.3 : 1.0)) continue;
-          if(!( inFace ? Math.random()<0.72 : Math.random()<0.18 )) continue;
-          pixels.push({nx, ny, r:r/255, g:g/255, b:b/255});
+          if(normDist>(inFace?1.3:1.0)) continue;
+          if(!(inFace?Math.random()<.72:Math.random()<.18)) continue;
+          pixels.push({nx,ny,r:r/255,g:g/255,b:b/255});
         }
-        if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
+        if(pixels.length>700){pixels.sort(()=>Math.random()-.5);pixels.length=700;}
       } else {
-        // illust：輪郭優先サンプリング＋円形マスク＋内部50%間引き
-        const edgePx=[], interPx=[];
-        const _edx=[2,-2,0,0], _edy=[0,0,2,-2];
-        for(let py=0;py<PSIZ;py+=2){
-          for(let lpx=0;lpx<PSIZ;lpx+=2){
-            const nx=(lpx/PSIZ)*2-1, ny=(py/PSIZ)*2-1;
-            const dist=Math.sqrt(nx*nx+ny*ny);
-            if(dist>1.0) continue;
-            const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
-            if(Math.random()>t*t*(3-2*t)) continue;
-            const i=(py*PSIZ+lpx)*4;
-            const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
-            if(!isColored(r,g,b,a)) continue;
-            // 4近傍で輪郭判定：背景接触 or 輝度差>40 → 優先残留
-            const lum=r*0.299+g*0.587+b*0.114;
-            let onEdge=false;
-            for(let c=0;c<4;c++){
-              const bx=lpx+_edx[c], by=py+_edy[c];
-              if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break;}
-              const ni=(by*PSIZ+bx)*4;
-              if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])||
-                 Math.abs(lum-(pd[ni]*0.299+pd[ni+1]*0.587+pd[ni+2]*0.114))>40){onEdge=true;break;}
-            }
-            (onEdge?edgePx:interPx).push({nx, ny, r:r/255, g:g/255, b:b/255});
+        const edgePx=[],interPx=[];
+        const _edx=[2,-2,0,0],_edy=[0,0,2,-2];
+        for(let py=0;py<PSIZ;py+=2) for(let lpx=0;lpx<PSIZ;lpx+=2){
+          const nx=(lpx/PSIZ)*2-1,ny=(py/PSIZ)*2-1;
+          const dist=Math.sqrt(nx*nx+ny*ny); if(dist>1.0) continue;
+          const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
+          if(Math.random()>t*t*(3-2*t)) continue;
+          const i=(py*PSIZ+lpx)*4;
+          const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
+          if(!isColored(r,g,b,a)) continue;
+          const lum=r*.299+g*.587+b*.114;
+          let onEdge=false;
+          for(let c=0;c<4;c++){
+            const bx=lpx+_edx[c],by=py+_edy[c];
+            if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break;}
+            const ni=(by*PSIZ+bx)*4;
+            if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])||
+               Math.abs(lum-(pd[ni]*.299+pd[ni+1]*.587+pd[ni+2]*.114))>40){onEdge=true;break;}
           }
+          (onEdge?edgePx:interPx).push({nx,ny,r:r/255,g:g/255,b:b/255});
         }
-        // 輪郭は全保持、内部は50%間引いてから結合
         interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx,...interPx.slice(0,Math.floor(interPx.length*0.35)));
-        if(pixels.length>_IMG_MAX){pixels.sort(()=>Math.random()-.5); pixels.length=_IMG_MAX;}
+        pixels.push(...edgePx,...interPx.slice(0,Math.floor(interPx.length*.35)));
+        if(pixels.length>_IMG_MAX){pixels.sort(()=>Math.random()-.5);pixels.length=_IMG_MAX;}
       }
-
-      // デバッグ表示
-      const dbg=document.getElementById('pxdbg');
-      if(dbg) dbg.textContent=`${mode} px:${pixels.length} e:${edgeDensity.toFixed(2)} v:${colorVariety} sk:${skinRatio.toFixed(2)}`;
-
-      resolve({pixels, mode});
+      resolve({pixels,mode});
     };
-    img.onerror=reject;
-    img.src=url;
+    img.onerror=reject; img.src=url;
   });
 }
 
 // ══════════════════════════════════════════════
 // 画像形状パーティクル
-// center から出発 → ~0.3秒で形成位置（通過点）を抜ける → そのまま外へ飛散
-// easeOut・hold・停止は一切なし
 // ══════════════════════════════════════════════
-
-const SHAPE_SCALE = 5.0; // ワールド幅 [m]
-
-// 黒・暗色を花火の発光色に変換（形認識には使うが表示色は黒にしない）
-const _DARK_PAL = [
-  [1.00, 0.86, 0.47], // gold
-  [1.00, 0.63, 0.31], // orange
-  [1.00, 0.47, 0.71], // pink
-  [0.63, 0.86, 1.00], // sky blue
-  [1.00, 1.00, 0.90], // warm white
+const SHAPE_SCALE=30.0;
+const _DARK_PAL=[
+  [1.00,.86,.47],[1.00,.63,.31],[1.00,.47,.71],[.63,.86,1.00],[1.00,1.00,.90],
 ];
-function mapFireworkColor(r, g, b){
-  const br = r*0.299 + g*0.587 + b*0.114; // luminance
-  if(br < 0.24){
-    // 黒・濃色 → ランダム発光色
-    return _DARK_PAL[Math.floor(Math.random()*_DARK_PAL.length)];
-  }
-  // 暗めの色は少し明るく補正
-  const boost = br < 0.55 ? 1.35 : 1.0;
-  return [
-    Math.min(1, r*boost + 0.10),
-    Math.min(1, g*boost + 0.10),
-    Math.min(1, b*boost + 0.10),
-  ];
+function mapFireworkColor(r,g,b){
+  const br=r*.299+g*.587+b*.114;
+  if(br<.24) return _DARK_PAL[Math.floor(Math.random()*_DARK_PAL.length)];
+  const boost=br<.55?1.35:1.0;
+  return [Math.min(1,r*boost+.10),Math.min(1,g*boost+.10),Math.min(1,b*boost+.10)];
 }
-
-// 爆発中心に0.5秒残る残光グロー（見失い防止）
-function addCenterGlow(x, y, z){
-  for(let i=0; i<5; i++){
-    const r2 = Math.random()*0.14;
-    const gc = Math.random()<0.5 ? [1,0.95,0.55] : [1,1,1];
-    addP(x,y,z,
-      (Math.random()-.5)*r2,(Math.random()-.5)*r2,(Math.random()-.5)*r2,
-      gc[0],gc[1],gc[2],
-      0.020+Math.random()*0.008, // decay ~0.5s
-      0.9+Math.random()*0.6); // サイズを大幅縮小（旧2.8〜4.6は画面全体を覆いblobの原因）
+function addCenterGlow(x,y,z){
+  for(let i=0;i<3;i++){
+    const r2=Math.random()*.10;
+    const gc=Math.random()<.5?[1,.95,.55]:[1,1,1];
+    addP(x,y,z,(Math.random()-.5)*r2,(Math.random()-.5)*r2,(Math.random()-.5)*r2,
+      gc[0],gc[1],gc[2],0.018+Math.random()*.006,0.6+Math.random()*.4);
   }
 }
-
-function showImageParticleShape(center, pixels, snapRight, snapUp, mode='illust'){
-  const HALF = SHAPE_SCALE * 0.5;
-  const szB  = (mode==='line_art') ? 1.5 : (mode==='text_logo') ? 1.4 : (mode==='face_portrait') ? 1.0 : (mode==='photo_landscape') ? 0.85 : 1.0;
-  const isPhotoMode = (mode==='photo_landscape'||mode==='face_portrait');
-  // 端末性能に応じた粒子上限（写真モードはさらに削減・他は1.3倍まで許容）
-  const pixCap = isPhotoMode ? Math.floor(_IMG_MAX*0.40) : _IMG_MAX;
-  const pxLen  = Math.min(pixels.length, pixCap);
-  for(let _pi=0; _pi<pxLen; _pi++){
-    const px = pixels[_pi];
-    // target = 画像ピクセルのワールド座標（通過点）
-    const tx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF;
-    const ty = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF;
-    const tz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF;
-    const dist = Math.sqrt(px.nx*px.nx + px.ny*px.ny);
-    // 到達f=15.5/(1+extraFrac): line_art→14f(0.23s)/text_logo→13f(0.22s)/photo→13f(0.22s)/illust→10-12f
-    const extraFrac = (mode==='line_art')
-      ? 0.03 + dist*0.05 + Math.random()*0.05
-      : (mode==='text_logo')
-        ? 0.05 + dist*0.08 + Math.random()*0.07
-        : (mode==='photo_landscape'||mode==='face_portrait')
-          ? 0.04 + dist*0.06 + Math.random()*0.06
-          : 0.25 + dist*0.18 + Math.random()*0.20;
+function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
+  const modeScale=(mode==='line_art')?42:(mode==='text_logo')?38:(mode==='photo_landscape')?30:(mode==='face_portrait')?33:35;
+  const HALF=modeScale*.5;
+  const szB=(mode==='line_art')?0.90:(mode==='text_logo')?1.00:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const pMinMode=(mode==='line_art')?5.5:(mode==='text_logo')?5.8:6.0;
+  const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
+  const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
+  const pxLen=Math.min(pixels.length,pixCap);
+  for(let _pi=0;_pi<pxLen;_pi++){
+    const px=pixels[_pi];
+    const tx=center.x+snapRight.x*px.nx*HALF+snapUp.x*(-px.ny)*HALF;
+    const ty=center.y+snapRight.y*px.nx*HALF+snapUp.y*(-px.ny)*HALF;
+    const tz=center.z+snapRight.z*px.nx*HALF+snapUp.z*(-px.ny)*HALF;
+    const dist=Math.sqrt(px.nx*px.nx+px.ny*px.ny);
+    const extraFrac=0.4+dist*0.2+Math.random()*0.3;
     let cr,cg,cb;
     if(mode==='face_portrait'){
-      // 肌色・髪色はhueを保持して発光補正（髪の暗色をgold変換せず顔の形が読める）
-      const brF=px.r*0.299+px.g*0.587+px.b*0.114;
-      const bst=brF<0.30?2.8:brF<0.55?1.45:1.20;
-      cr=Math.min(1,px.r*bst+0.04); cg=Math.min(1,px.g*bst+0.02); cb=Math.min(1,px.b*bst+0.02);
+      const brF=px.r*.299+px.g*.587+px.b*.114;
+      const bst=brF<.30?2.8:brF<.55?1.45:1.20;
+      cr=Math.min(1,px.r*bst+.04);cg=Math.min(1,px.g*bst+.02);cb=Math.min(1,px.b*bst+.02);
     } else {
       [cr,cg,cb]=mapFireworkColor(px.r,px.g,px.b);
-      // text_logo: 元色を発光補正（夜空で文字色が読める輝度に）
       if(mode==='text_logo'){
-        cr=Math.min(1,cr*1.20+0.06); cg=Math.min(1,cg*1.20+0.06); cb=Math.min(1,cb*1.20+0.06);
+        cr=Math.min(1,cr*1.20+.06);cg=Math.min(1,cg*1.20+.06);cb=Math.min(1,cb*1.20+.06);
       }
     }
-    // 写真モード：丸形粒子・サイズランダム幅広め / 線画・文字：シャープ均一
-    const pSize = isPhotoMode ? (0.06+Math.random()*0.09)*szB : (0.07+Math.random()*0.05)*szB;
-    addDirP(
-      center.x, center.y, center.z,
-      tx, ty, tz,
-      cr, cg, cb,
-      extraFrac,
-      pSize,
-      0.004+Math.random()*0.003,
-      isPhotoMode ? 1 : 0
-    );
+    const pSize=
+      (mode==='line_art') ?(0.034+Math.random()*0.014)*szB:
+      (mode==='text_logo')?(0.040+Math.random()*0.016)*szB:
+      isPhotoMode         ?(0.060+Math.random()*0.090)*szB:
+                           (0.055+Math.random()*0.030)*szB;
+    addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
+      0.004+Math.random()*.003,isPhotoMode?1:0,pMinMode);
   }
-  // 爆発中心フラッシュ（2粒子のみ・小さく短命）
-  for(let i=0;i<2;i++){
+  for(let i=0;i<1;i++){
     addP(center.x,center.y,center.z,
-      (Math.random()-.5)*.008,(Math.random()-.5)*.008,(Math.random()-.5)*.008,
-      1,1,1, 0.12+Math.random()*0.06, 0.35+Math.random()*0.20);
+      (Math.random()-.5)*.006,(Math.random()-.5)*.006,(Math.random()-.5)*.006,
+      1,1,1,0.10+Math.random()*.04,0.20+Math.random()*.12);
   }
-  // 中心残光（見失い防止）
-  addCenterGlow(center.x, center.y, center.z);
+  addCenterGlow(center.x,center.y,center.z);
 }
-
 
 // ══════════════════════════════════════════════
 // ロケット
 // ══════════════════════════════════════════════
-
-const rockets = [];
-
-function launchVector(start, end, pal, onBurst=null){
-  const dir = end.clone().sub(start).normalize();
-  rockets.push({ start:start.clone(), end:end.clone(), dir,
-                 pos:new THREE.Vector3(), t:0, pal, trail:0, onBurst });
-  showLaunchIndicator(start, end);
+const rockets=[];
+function launchVector(start,end,pal,onBurst=null){
+  const dir=end.clone().sub(start).normalize();
+  rockets.push({start:start.clone(),end:end.clone(),dir,
+                pos:new THREE.Vector3(),t:0,pal,trail:0,onBurst});
   whistle();
 }
-
 function updateRockets(){
-  for(let i=rockets.length-1; i>=0; i--){
-    const r = rockets[i];
-    r.t = Math.min(1, r.t+0.017);
-    const e = r.t<.5 ? 2*r.t*r.t : 1-(-2*r.t+2)**2/2;
-    r.pos.lerpVectors(r.start, r.end, e);
-
+  for(let i=rockets.length-1;i>=0;i--){
+    const r=rockets[i];
+    r.t=Math.min(1,r.t+0.017);
+    const e=r.t<.5?2*r.t*r.t:1-(-2*r.t+2)**2/2;
+    r.pos.lerpVectors(r.start,r.end,e);
     r.trail++;
-    if(r.trail % 2 === 0){
-      const tv = 0.016 + Math.random()*0.012;
-      for(let k=0; k<3; k++){
-        addP(
-          r.pos.x+(Math.random()-.5)*.06,
-          r.pos.y+(Math.random()-.5)*.06,
-          r.pos.z+(Math.random()-.5)*.06,
-          -r.dir.x*tv+(Math.random()-.5)*.008,
-          -r.dir.y*tv+(Math.random()-.5)*.008,
-          -r.dir.z*tv+(Math.random()-.5)*.008,
-          1, 0.82+Math.random()*.18, 0.3+Math.random()*.3,
-          0.048+Math.random()*0.05, 0.18+Math.random()*0.14);
+    if(r.trail%2===0){
+      const tv=0.016+Math.random()*.012;
+      for(let k=0;k<3;k++){
+        addP(r.pos.x+(Math.random()-.5)*.06,r.pos.y+(Math.random()-.5)*.06,r.pos.z+(Math.random()-.5)*.06,
+          -r.dir.x*tv+(Math.random()-.5)*.008,-r.dir.y*tv+(Math.random()-.5)*.008,-r.dir.z*tv+(Math.random()-.5)*.008,
+          1,0.82+Math.random()*.18,0.3+Math.random()*.3,0.048+Math.random()*.05,0.18+Math.random()*.14);
       }
-      addP(r.pos.x, r.pos.y, r.pos.z, 0,0,0, 1,1,1, 0.55, 0.42);
+      addP(r.pos.x,r.pos.y,r.pos.z,0,0,0,1,1,1,0.55,0.42);
     }
-
-    if(r.t >= 1){
+    if(r.t>=1){
       if(r.onBurst) r.onBurst(r.pos.clone());
-      else burst(r.pos.x, r.pos.y, r.pos.z,
-                 r.pal || PALETTES[Math.floor(Math.random()*PALETTES.length)]);
+      else burst(r.pos.x,r.pos.y,r.pos.z,r.pal||PALETTES[Math.floor(Math.random()*PALETTES.length)]);
       rockets.splice(i,1);
     }
   }
 }
 
 // ══════════════════════════════════════════════
-// アンカー方式花火打ち上げ（メインエントリ）
-// tap時点のカメラ方向から world 座標を確定し、
-// 以後ジャイロが動いても花火はその場に固定される
+// スクリーンモード：固定カメラ（ジャイロなし）
 // ══════════════════════════════════════════════
-
-let _workIndex = 0;
-
-function _doLaunch(imgData, snapRight, snapUp){
-  const forward = new THREE.Vector3();
-  cam.getWorldDirection(forward);
-  const worldUp = new THREE.Vector3(0, 1, 0);
-  const burstAnchor = cam.position.clone()
-    .addScaledVector(forward, 10)
-    .addScaledVector(worldUp, 3);
-  const launchStart = burstAnchor.clone()
-    .addScaledVector(worldUp, -5);
-
-  launchVector(launchStart, burstAnchor, null, burstPos => {
-    setTimeout(()=>boom(), 55);
-    if(imgData && imgData.pixels && imgData.pixels.length > 0){
-      showImageParticleShape(burstPos, imgData.pixels, snapRight, snapUp, imgData.mode);
-    }
-    // 作品あり・読み込み失敗時は何も出さない（burst混入なし）
-  });
-}
-
-function launchAnchorFirework(){
-  const forward = new THREE.Vector3();
-  cam.getWorldDirection(forward);
-  const worldUp = new THREE.Vector3(0, 1, 0);
-
-  const snapRight = new THREE.Vector3()
-    .crossVectors(forward, worldUp).normalize();
-  if(snapRight.lengthSq() < 0.01) snapRight.set(1,0,0);
-  const snapUp = new THREE.Vector3()
-    .crossVectors(snapRight, forward).normalize();
-
-  if(works.length === 0){
-    // 作品なし → 通常花火
-    const fwd = forward.clone();
-    const wUp = worldUp.clone();
-    const bAnchor = cam.position.clone().addScaledVector(fwd,10).addScaledVector(wUp,3);
-    const lStart  = bAnchor.clone().addScaledVector(wUp,-5);
-    launchVector(lStart, bAnchor,
-      PALETTES[Math.floor(Math.random()*PALETTES.length)], null);
-    return;
-  }
-
-  // 作品あり：キャッシュ確認→なければロード→ロケット発射
-  const work = works[_workIndex % works.length];
-  _workIndex++;
-
-  const cached = imageCache[work.url];
-  if(cached){
-    // キャッシュヒット：即発射
-    _doLaunch(cached, snapRight, snapUp);
-  } else {
-    // キャッシュミス：画像ロード完了後に発射（burst fallback しない）
-    makeImageData(work.url)
-      .then(d => {
-        imageCache[work.url] = d;
-        _doLaunch(d, snapRight, snapUp);
-      })
-      .catch(() => {
-        // 読み込み失敗：ロケットも出さない（通常花火混入なし）
-      });
-  }
-}
-
-let _hintTimer = null;
-function showFireworkHint(){
-  const el = document.getElementById('fw-hint');
-  if(!el) return;
-  el.style.opacity = '1';
-  clearTimeout(_hintTimer);
-  _hintTimer = setTimeout(()=>{ el.style.opacity = '0'; }, 2600);
-}
-
-// touchstart + click の両方が来てもタップ1回 = 発射1回にする
-let _lastTapMs = 0;
-function onTap(e){
-  const now = Date.now();
-  if(now - _lastTapMs < 500) return; // 500ms 以内の重複イベントを無視
-  _lastTapMs = now;
-  try{ if(audioCtx) audioCtx.resume(); }catch(_){}
-  launchAnchorFirework();
-  showFireworkHint();
-}
-
-// touchstart のみ登録（click は touchstart の後に合成されるため重複する）
-document.addEventListener('touchstart', onTap, {passive:true});
-// PC/デスクトップ向けに click も残すが、touchstart 後は 500ms ガードで無視される
-document.addEventListener('click', onTap);
-
-// ══════════════════════════════════════════════
-// ジャイロ
-// ══════════════════════════════════════════════
-
-let gyroOn = false;
-let gA=0, gB=0, gG=0;
-const euG = new THREE.Euler();
-const q1G = new THREE.Quaternion(-Math.sqrt(.5),0,0,Math.sqrt(.5));
-const q2G = new THREE.Quaternion();
-const zeeG = new THREE.Vector3(0,0,1);
-const R = THREE.MathUtils.degToRad;
-
 function updateCamera(){
-  if(xrActive) return;
-  if(!gyroOn){
-    cam.rotation.order='YXZ';
-    cam.rotation.set(-0.28,0,0);
+  cam.rotation.order='YXZ';
+  cam.rotation.set(-0.25,0,0);
+}
+
+// ══════════════════════════════════════════════
+// アナウンス
+// ══════════════════════════════════════════════
+function showAnnouncement(name){
+  document.getElementById('annName').textContent=name;
+  const el=document.getElementById('announce');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ══════════════════════════════════════════════
+// 自動打ち上げ
+// ══════════════════════════════════════════════
+let _workIndex=0;
+let _autoScheduled=false;
+let _lastXOff=0;
+const SNAP_RIGHT=new THREE.Vector3(1,0,0);
+const SNAP_UP   =new THREE.Vector3(0,1,0);
+
+function scheduleNextLaunch(ms){
+  if(_autoScheduled) return;
+  _autoScheduled=true;
+  setTimeout(()=>{ _autoScheduled=false; triggerNextFirework(); },ms);
+}
+
+function triggerNextFirework(){
+  // 直前の位置から最低7ユニット離れた位置を選ぶ
+  let xOff;
+  do { xOff=(Math.random()-.5)*18; } while(Math.abs(xOff-_lastXOff)<7);
+  _lastXOff=xOff;
+  const zDist=-14;
+  const bPos =new THREE.Vector3(xOff, -1+Math.random()*3, zDist);
+  const lPos =new THREE.Vector3(xOff+(Math.random()-.5)*1.5, -8, zDist);
+
+  if(works.length===0){
+    launchVector(lPos,bPos,PALETTES[Math.floor(Math.random()*PALETTES.length)],null);
+    scheduleNextLaunch(5000);
     return;
   }
-  const heading = R(360-gA);
-  euG.set(R(gB),R(gA),R(-gG),'YXZ');
-  cam.quaternion.setFromEuler(euG);
-  cam.quaternion.multiply(q1G);
-  q2G.setFromAxisAngle(zeeG,-heading);
-  cam.quaternion.multiply(q2G);
-}
 
-function startGyro(){
-  gyroOn = true;
-  window.addEventListener('deviceorientation', e=>{
-    if(e.alpha===null) return;
-    gA=e.alpha; gB=e.beta; gG=e.gamma;
-  }, true);
-}
+  const work=works[_workIndex%works.length];
+  _workIndex++;
+  showAnnouncement(work.name||'みんなの花火');
 
-function checkPerm(){
-  if(typeof DeviceOrientationEvent==='undefined') return;
-  if(typeof DeviceOrientationEvent.requestPermission==='function'){
-    document.getElementById('perm').style.display='flex';
-  } else { startGyro(); }
-}
+  const fire=(imgData)=>{
+    launchVector(lPos,bPos,null,burstPos=>{
+      setTimeout(()=>boom(),55);
+      if(imgData&&imgData.pixels&&imgData.pixels.length>0){
+        showImageParticleShape(burstPos,imgData.pixels,SNAP_RIGHT,SNAP_UP,imgData.mode);
+      }
+    });
+    scheduleNextLaunch(7500);
+  };
 
-function grantPerm(){
-  DeviceOrientationEvent.requestPermission()
-    .then(s=>{
-      document.getElementById('perm').style.display='none';
-      if(s==='granted') startGyro();
-    })
-    .catch(()=>{ document.getElementById('perm').style.display='none'; });
+  setTimeout(()=>{
+    const cached=imageCache[work.url];
+    if(cached){ fire(cached); return; }
+    makeImageData(work.url)
+      .then(d=>{ imageCache[work.url]=d; fire(d); })
+      .catch(()=>fire(null));
+  },1800);
 }
 
 // ══════════════════════════════════════════════
-// WebXR
+// スタート（AudioContext 初期化 + ショー開始）
 // ══════════════════════════════════════════════
-
-let xrActive = false;
-(async()=>{
-  if(!navigator.xr) return;
-  try{
-    const ok = await navigator.xr.isSessionSupported('immersive-ar');
-    if(ok) document.getElementById('xrbtn').style.display='block';
-  }catch(_){}
-})();
-
-async function enterXR(){
-  try{
-    const s = await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['local'],
-      optionalFeatures:['dom-overlay'],
-      domOverlay:{root:document.getElementById('ui')}
-    });
-    ren.xr.enabled=true; xrActive=true;
-    await ren.xr.setSession(s);
-    ren.setAnimationLoop(()=>{ tick(); ren.render(scene,cam); });
-    s.addEventListener('end',()=>{
-      ren.xr.enabled=false; xrActive=false;
-      ren.setAnimationLoop(null);
-    });
-  }catch(e){ console.warn('WebXR:',e); }
+function startShow(){
+  document.getElementById('startScreen').style.display='none';
+  try{ getAu(); }catch(_){}
+  setTimeout(()=>triggerNextFirework(),800);
 }
 
 // ══════════════════════════════════════════════
 // オーディオ
 // ══════════════════════════════════════════════
-
-let audioCtx = null;
+let audioCtx=null;
 function getAu(){
   if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   audioCtx.resume(); return audioCtx;
 }
-
-// 打ち上げ音：スペクトログラム解析ベース（発射ドン + ピュー笛×2 + 噴射ノイズ）
-// 実音 spectrogram より：笛音 2400→4200Hz、継続 ~1.85s
 function whistle(){
   try{
-    const ctx=getAu(), now=ctx.currentTime, sr=ctx.sampleRate;
-    const dur=1.85;
-
-    // Layer 1: 発射ドン（砲台低音衝撃 ~70ms）
-    const nb=Math.floor(sr*0.07);
-    const bb=ctx.createBuffer(1,nb,sr);
-    const db_=bb.getChannelData(0);
-    for(let i=0;i<nb;i++) db_[i]=(Math.random()*2-1)*Math.exp(-i/(nb*0.14));
+    const ctx=getAu(),now=ctx.currentTime,sr=ctx.sampleRate,dur=1.85;
+    const nb=Math.floor(sr*.07),bb=ctx.createBuffer(1,nb,sr),db_=bb.getChannelData(0);
+    for(let i=0;i<nb;i++) db_[i]=(Math.random()*2-1)*Math.exp(-i/(nb*.14));
     const sb=ctx.createBufferSource(); sb.buffer=bb;
     const lpb=ctx.createBiquadFilter(); lpb.type='lowpass'; lpb.frequency.value=200; lpb.Q.value=4.0;
-    const gb=ctx.createGain();
-    gb.gain.setValueAtTime(0.21,now);
-    gb.gain.exponentialRampToValueAtTime(0.001,now+0.12);
-    sb.connect(lpb); lpb.connect(gb); gb.connect(ctx.destination);
-    sb.start(now);
-
-    // Layer 2: メイン笛音 sine 4200→2400Hz（ピュー↘）
+    const gb=ctx.createGain(); gb.gain.setValueAtTime(.21,now); gb.gain.exponentialRampToValueAtTime(.001,now+.12);
+    sb.connect(lpb); lpb.connect(gb); gb.connect(ctx.destination); sb.start(now);
     const o1=ctx.createOscillator(); o1.type='sine';
-    o1.frequency.setValueAtTime(4200,now+0.02);
-    o1.frequency.exponentialRampToValueAtTime(2400,now+dur);
+    o1.frequency.setValueAtTime(4200,now+.02); o1.frequency.exponentialRampToValueAtTime(2400,now+dur);
     const g1=ctx.createGain();
-    g1.gain.setValueAtTime(0.001,now);
-    g1.gain.linearRampToValueAtTime(0.10,now+0.07);
-    g1.gain.setValueAtTime(0.10,now+dur*0.84);
-    g1.gain.exponentialRampToValueAtTime(0.001,now+dur);
-    o1.connect(g1); g1.connect(ctx.destination);
-    o1.start(now); o1.stop(now+dur+0.05);
-
-    // Layer 3: +12Hz デチューン（うなり・コーラスでピュー感を強める）
+    g1.gain.setValueAtTime(.001,now); g1.gain.linearRampToValueAtTime(.10,now+.07);
+    g1.gain.setValueAtTime(.10,now+dur*.84); g1.gain.exponentialRampToValueAtTime(.001,now+dur);
+    o1.connect(g1); g1.connect(ctx.destination); o1.start(now); o1.stop(now+dur+.05);
     const o2=ctx.createOscillator(); o2.type='sine';
-    o2.frequency.setValueAtTime(4212,now+0.02);
-    o2.frequency.exponentialRampToValueAtTime(2412,now+dur);
+    o2.frequency.setValueAtTime(4212,now+.02); o2.frequency.exponentialRampToValueAtTime(2412,now+dur);
     const g2=ctx.createGain();
-    g2.gain.setValueAtTime(0.001,now);
-    g2.gain.linearRampToValueAtTime(0.05,now+0.09);
-    g2.gain.setValueAtTime(0.05,now+dur*0.80);
-    g2.gain.exponentialRampToValueAtTime(0.001,now+dur);
-    o2.connect(g2); g2.connect(ctx.destination);
-    o2.start(now+0.01); o2.stop(now+dur+0.05);
-
-    // Layer 4: 噴射ノイズ bandpass 600→2000Hz（シュー、笛より控えめ）
-    const nLen=Math.floor(sr*dur);
-    const nBuf=ctx.createBuffer(1,nLen,sr);
-    const nd=nBuf.getChannelData(0);
+    g2.gain.setValueAtTime(.001,now); g2.gain.linearRampToValueAtTime(.05,now+.09);
+    g2.gain.setValueAtTime(.05,now+dur*.80); g2.gain.exponentialRampToValueAtTime(.001,now+dur);
+    o2.connect(g2); g2.connect(ctx.destination); o2.start(now+.01); o2.stop(now+dur+.05);
+    const nLen=Math.floor(sr*dur),nBuf=ctx.createBuffer(1,nLen,sr),nd=nBuf.getChannelData(0);
     for(let i=0;i<nLen;i++) nd[i]=Math.random()*2-1;
     const nSrc=ctx.createBufferSource(); nSrc.buffer=nBuf;
     const bpf=ctx.createBiquadFilter(); bpf.type='bandpass';
-    bpf.frequency.setValueAtTime(2000,now);
-    bpf.frequency.exponentialRampToValueAtTime(600,now+dur);
-    bpf.Q.value=1.2;
+    bpf.frequency.setValueAtTime(2000,now); bpf.frequency.exponentialRampToValueAtTime(600,now+dur); bpf.Q.value=1.2;
     const gn=ctx.createGain();
-    gn.gain.setValueAtTime(0.001,now);
-    gn.gain.linearRampToValueAtTime(0.019,now+0.06);
-    gn.gain.setValueAtTime(0.019,now+dur*0.65);
-    gn.gain.exponentialRampToValueAtTime(0.001,now+dur);
-    nSrc.connect(bpf); bpf.connect(gn); gn.connect(ctx.destination);
-    nSrc.start(now); nSrc.stop(now+dur);
+    gn.gain.setValueAtTime(.001,now); gn.gain.linearRampToValueAtTime(.019,now+.06);
+    gn.gain.setValueAtTime(.019,now+dur*.65); gn.gain.exponentialRampToValueAtTime(.001,now+dur);
+    nSrc.connect(bpf); bpf.connect(gn); gn.connect(ctx.destination); nSrc.start(now); nSrc.stop(now+dur);
   }catch(_){}
 }
-
-// 爆発音：2層構成（高域パン + 低音ドーン遅延）＋フィードバック残響
 function boom(){
   try{
-    const ctx=getAu(), sr=ctx.sampleRate, now=ctx.currentTime;
-    const vol=0.16;
-
-    // ── Layer 1: 高域破裂音（即時）──
-    const n1=Math.floor(sr*0.14);
-    const buf1=ctx.createBuffer(1,n1,sr);
-    const d1=buf1.getChannelData(0);
-    for(let i=0;i<n1;i++) d1[i]=(Math.random()*2-1)*Math.exp(-i/(n1*0.055));
+    const ctx=getAu(),sr=ctx.sampleRate,now=ctx.currentTime,vol=0.16;
+    const n1=Math.floor(sr*.14),buf1=ctx.createBuffer(1,n1,sr),d1=buf1.getChannelData(0);
+    for(let i=0;i<n1;i++) d1[i]=(Math.random()*2-1)*Math.exp(-i/(n1*.055));
     const src1=ctx.createBufferSource(); src1.buffer=buf1;
     const hpf=ctx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=700;
     const g1=ctx.createGain();
-    g1.gain.setValueAtTime(vol*1.2,now);
-    g1.gain.exponentialRampToValueAtTime(0.001,now+0.14);
-    src1.connect(hpf); hpf.connect(g1); g1.connect(ctx.destination);
-    src1.start(now);
-
-    // ── Layer 2: 低音ドーン（0.14〜0.21秒後）──
-    const d2st=now+0.14+Math.random()*0.07;
-    const n2=Math.floor(sr*2.0);
-    const buf2=ctx.createBuffer(1,n2,sr);
-    const d2=buf2.getChannelData(0);
-    for(let i=0;i<n2;i++) d2[i]=(Math.random()*2-1)*Math.exp(-i/(n2*0.20));
+    g1.gain.setValueAtTime(vol*1.2,now); g1.gain.exponentialRampToValueAtTime(.001,now+.14);
+    src1.connect(hpf); hpf.connect(g1); g1.connect(ctx.destination); src1.start(now);
+    const d2st=now+.14+Math.random()*.07;
+    const n2=Math.floor(sr*2.0),buf2=ctx.createBuffer(1,n2,sr),d2=buf2.getChannelData(0);
+    for(let i=0;i<n2;i++) d2[i]=(Math.random()*2-1)*Math.exp(-i/(n2*.20));
     const src2=ctx.createBufferSource(); src2.buffer=buf2;
     const lpf=ctx.createBiquadFilter(); lpf.type='lowpass'; lpf.frequency.value=200; lpf.Q.value=1.5;
-    // ソフトクリッピングで腹に響く歪み
     const ws=ctx.createWaveShaper();
     const wc=new Float32Array(256);
     for(let i=0;i<256;i++){const x=(i*2/255)-1; wc[i]=(3*x)/(2*(1+Math.abs(2.2*x)));}
     ws.curve=wc; ws.oversample='2x';
     const g2=ctx.createGain();
-    g2.gain.setValueAtTime(0.001,d2st);
-    g2.gain.linearRampToValueAtTime(vol*0.88,d2st+0.06);
-    g2.gain.exponentialRampToValueAtTime(0.001,d2st+1.9);
-    // フィードバック残響（ループ遅延）
-    const dly=ctx.createDelay(0.5); dly.delayTime.value=0.058;
-    const fb=ctx.createGain(); fb.gain.value=0.24;
-    const rv=ctx.createGain(); rv.gain.value=0.20;
+    g2.gain.setValueAtTime(.001,d2st); g2.gain.linearRampToValueAtTime(vol*.88,d2st+.06);
+    g2.gain.exponentialRampToValueAtTime(.001,d2st+1.9);
+    const dly=ctx.createDelay(.5); dly.delayTime.value=.058;
+    const fb=ctx.createGain(); fb.gain.value=.24;
+    const rv=ctx.createGain(); rv.gain.value=.20;
     src2.connect(lpf); lpf.connect(ws); ws.connect(g2);
     g2.connect(ctx.destination);
-    g2.connect(dly); dly.connect(fb); fb.connect(dly); // 残響ループ
+    g2.connect(dly); dly.connect(fb); fb.connect(dly);
     fb.connect(rv); rv.connect(ctx.destination);
     src2.start(d2st);
   }catch(_){}
@@ -1122,18 +748,15 @@ function boom(){
 // ══════════════════════════════════════════════
 // メインループ
 // ══════════════════════════════════════════════
-
 function tick(){
   updateCamera();
   updateRockets();
-  updateArrowIndicator();
   updateParticles();
 }
-
 function animate(){
   requestAnimationFrame(animate);
   tick();
-  ren.render(scene, cam);
+  ren.render(scene,cam);
 }
 animate();
 
@@ -1142,8 +765,6 @@ window.addEventListener('resize',()=>{
   cam.updateProjectionMatrix();
   ren.setSize(innerWidth,innerHeight);
 });
-
-checkPerm();
 </script>
 </body>
 </html>
