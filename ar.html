@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v3.4-screen</div>
+<div class="ver">v3.5-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -394,8 +394,8 @@ function makeImageData(url){
           else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,950),...interPx.slice(0,120));
-        if(pixels.length>1070) pixels.length=1070;
+        pixels.push(...edgePx.slice(0,900),...interPx.slice(0,80));
+        if(pixels.length>980) pixels.length=980;
       } else if(mode==='text_logo'){
         const edgePx=[],interPx=[];
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
@@ -413,8 +413,8 @@ function makeImageData(url){
           if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1200),...interPx.slice(0,500));
-        if(pixels.length>1700) pixels.length=1700;
+        pixels.push(...edgePx.slice(0,1100),...interPx.slice(0,320));
+        if(pixels.length>1420) pixels.length=1420;
       } else if(mode==='photo_landscape'){
         const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
         const cmap=new Map();
@@ -517,10 +517,10 @@ function addCenterGlow(x,y,z){
   }
 }
 function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
-  const modeScale=(mode==='line_art')?36:(mode==='text_logo')?34:(mode==='photo_landscape')?30:(mode==='face_portrait')?31:32;
+  const modeScale=(mode==='line_art')?42:(mode==='text_logo')?38:(mode==='photo_landscape')?30:(mode==='face_portrait')?33:35;
   const HALF=modeScale*.5;
-  const szB=(mode==='line_art')?0.80:(mode==='text_logo')?0.92:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
-  const pMinMode=(mode==='line_art')?5.0:(mode==='text_logo')?5.4:6.0;
+  const szB=(mode==='line_art')?0.90:(mode==='text_logo')?1.00:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const pMinMode=(mode==='line_art')?5.5:(mode==='text_logo')?5.8:6.0;
   const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
   const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
   const pxLen=Math.min(pixels.length,pixCap);
@@ -543,9 +543,9 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
       }
     }
     const pSize=
-      (mode==='line_art') ?(0.030+Math.random()*0.012)*szB:
-      (mode==='text_logo')?(0.036+Math.random()*0.014)*szB:
-      isPhotoMode         ?(0.030+Math.random()*0.045)*szB:
+      (mode==='line_art') ?(0.034+Math.random()*0.014)*szB:
+      (mode==='text_logo')?(0.040+Math.random()*0.016)*szB:
+      isPhotoMode         ?(0.060+Math.random()*0.090)*szB:
                            (0.055+Math.random()*0.030)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
       0.004+Math.random()*.003,isPhotoMode?1:0,pMinMode);
