@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v3.2-screen</div>
+<div class="ver">v3.3-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -126,6 +126,7 @@ const bC = new Float32Array(MAX*3);
 const bA = new Float32Array(MAX);
 const bS = new Float32Array(MAX);
 const bR = new Float32Array(MAX);
+const bPMin = new Float32Array(MAX).fill(6.0); // モード別PointSize下限
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -133,6 +134,7 @@ geo.setAttribute('aC',       new THREE.BufferAttribute(bC,3));
 geo.setAttribute('aA',       new THREE.BufferAttribute(bA,1));
 geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
+geo.setAttribute('aPMin',    new THREE.BufferAttribute(bPMin,1));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -147,13 +149,14 @@ const mat = new THREE.ShaderMaterial({
   vertexShader:`
     uniform float uSizeBoost;
     attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR;
+    attribute float aPMin;
     varying vec3 vC; varying float vA; varying float vR;
     void main(){
       vC=aC; vA=aA; vR=aR;
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(5.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      gl_PointSize=max(aPMin, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -188,10 +191,10 @@ scene.add(_pts);
 // パーティクル状態
 // ══════════════════════════════════════════════
 const ps = [];
-function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0){
-  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round});
+function addP(x,y,z, vx,vy,vz, r,g,b, decay, s, hold=0, round=0, pMin=6.0){
+  ps.push({x,y,z,vx,vy,vz,r,g,b,a:1.0,decay,s,hold,round,pMin});
 }
-function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
+function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0, pMin=6.0){
   const dx=tx-sx, dy=ty-sy, dz=tz-sz;
   const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
   const nx=dx/len, ny=dy/len, nz=dz/len;
@@ -199,7 +202,7 @@ function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
   const vx=nx*totalSpeed+(Math.random()-.5)*0.008;
   const vy=ny*totalSpeed+(Math.random()-.5)*0.008;
   const vz=nz*totalSpeed+(Math.random()-.5)*0.008;
-  addP(sx,sy,sz, vx,vy,vz, r,g,b, decay, s, 0, round);
+  addP(sx,sy,sz, vx,vy,vz, r,g,b, decay, s, 0, round, pMin);
 }
 
 function updateParticles(){
@@ -219,7 +222,7 @@ function updateParticles(){
     if(effS<0.028) continue;
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
-    bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0;
+    bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0; bPMin[cnt]=p.pMin||6.0;
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -229,6 +232,7 @@ function updateParticles(){
   geo.attributes.aA.needsUpdate=true;
   geo.attributes.aS.needsUpdate=true;
   geo.attributes.aR.needsUpdate=true;
+  geo.attributes.aPMin.needsUpdate=true;
 }
 
 // ══════════════════════════════════════════════
@@ -390,8 +394,8 @@ function makeImageData(url){
           else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,900),...interPx.slice(0,80));
-        if(pixels.length>1000) pixels.length=1000;
+        pixels.push(...edgePx.slice(0,850),...interPx.slice(0,40));
+        if(pixels.length>900) pixels.length=900;
       } else if(mode==='text_logo'){
         const edgePx=[],interPx=[];
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
@@ -409,8 +413,8 @@ function makeImageData(url){
           if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1100),...interPx.slice(0,450));
-        if(pixels.length>1550) pixels.length=1550;
+        pixels.push(...edgePx.slice(0,1000),...interPx.slice(0,260));
+        if(pixels.length>1260) pixels.length=1260;
       } else if(mode==='photo_landscape'){
         const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
         const cmap=new Map();
@@ -513,8 +517,10 @@ function addCenterGlow(x,y,z){
   }
 }
 function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
-  const HALF=SHAPE_SCALE*.5;
-  const szB=(mode==='line_art')?0.78:(mode==='text_logo')?0.88:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const modeScale=(mode==='line_art')?36:(mode==='text_logo')?34:(mode==='photo_landscape')?30:(mode==='face_portrait')?31:32;
+  const HALF=modeScale*.5;
+  const szB=(mode==='line_art')?0.62:(mode==='text_logo')?0.76:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const pMinMode=(mode==='line_art')?4.0:(mode==='text_logo')?4.5:6.0;
   const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
   const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
   const pxLen=Math.min(pixels.length,pixCap);
@@ -537,12 +543,12 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
       }
     }
     const pSize=
-      (mode==='line_art') ?(0.030+Math.random()*0.014)*szB:
-      (mode==='text_logo')?(0.036+Math.random()*0.016)*szB:
+      (mode==='line_art') ?(0.022+Math.random()*0.010)*szB:
+      (mode==='text_logo')?(0.028+Math.random()*0.012)*szB:
       isPhotoMode         ?(0.030+Math.random()*0.045)*szB:
                            (0.055+Math.random()*0.030)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
-      0.004+Math.random()*.003,isPhotoMode?1:0);
+      0.004+Math.random()*.003,isPhotoMode?1:0,pMinMode);
   }
   for(let i=0;i<2;i++){
     addP(center.x,center.y,center.z,
