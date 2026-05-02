@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v3.3-screen</div>
+<div class="ver">v3.4-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -394,8 +394,8 @@ function makeImageData(url){
           else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,850),...interPx.slice(0,40));
-        if(pixels.length>900) pixels.length=900;
+        pixels.push(...edgePx.slice(0,950),...interPx.slice(0,120));
+        if(pixels.length>1070) pixels.length=1070;
       } else if(mode==='text_logo'){
         const edgePx=[],interPx=[];
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
@@ -413,8 +413,8 @@ function makeImageData(url){
           if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1000),...interPx.slice(0,260));
-        if(pixels.length>1260) pixels.length=1260;
+        pixels.push(...edgePx.slice(0,1200),...interPx.slice(0,500));
+        if(pixels.length>1700) pixels.length=1700;
       } else if(mode==='photo_landscape'){
         const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
         const cmap=new Map();
@@ -509,18 +509,18 @@ function mapFireworkColor(r,g,b){
   return [Math.min(1,r*boost+.10),Math.min(1,g*boost+.10),Math.min(1,b*boost+.10)];
 }
 function addCenterGlow(x,y,z){
-  for(let i=0;i<5;i++){
-    const r2=Math.random()*.14;
+  for(let i=0;i<3;i++){
+    const r2=Math.random()*.10;
     const gc=Math.random()<.5?[1,.95,.55]:[1,1,1];
     addP(x,y,z,(Math.random()-.5)*r2,(Math.random()-.5)*r2,(Math.random()-.5)*r2,
-      gc[0],gc[1],gc[2],0.020+Math.random()*.008,0.9+Math.random()*.6);
+      gc[0],gc[1],gc[2],0.018+Math.random()*.006,0.6+Math.random()*.4);
   }
 }
 function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
   const modeScale=(mode==='line_art')?36:(mode==='text_logo')?34:(mode==='photo_landscape')?30:(mode==='face_portrait')?31:32;
   const HALF=modeScale*.5;
-  const szB=(mode==='line_art')?0.62:(mode==='text_logo')?0.76:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
-  const pMinMode=(mode==='line_art')?4.0:(mode==='text_logo')?4.5:6.0;
+  const szB=(mode==='line_art')?0.80:(mode==='text_logo')?0.92:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const pMinMode=(mode==='line_art')?5.0:(mode==='text_logo')?5.4:6.0;
   const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
   const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
   const pxLen=Math.min(pixels.length,pixCap);
@@ -543,17 +543,17 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
       }
     }
     const pSize=
-      (mode==='line_art') ?(0.022+Math.random()*0.010)*szB:
-      (mode==='text_logo')?(0.028+Math.random()*0.012)*szB:
+      (mode==='line_art') ?(0.030+Math.random()*0.012)*szB:
+      (mode==='text_logo')?(0.036+Math.random()*0.014)*szB:
       isPhotoMode         ?(0.030+Math.random()*0.045)*szB:
                            (0.055+Math.random()*0.030)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
       0.004+Math.random()*.003,isPhotoMode?1:0,pMinMode);
   }
-  for(let i=0;i<2;i++){
+  for(let i=0;i<1;i++){
     addP(center.x,center.y,center.z,
-      (Math.random()-.5)*.008,(Math.random()-.5)*.008,(Math.random()-.5)*.008,
-      1,1,1,0.12+Math.random()*.06,0.35+Math.random()*.20);
+      (Math.random()-.5)*.006,(Math.random()-.5)*.006,(Math.random()-.5)*.006,
+      1,1,1,0.10+Math.random()*.04,0.20+Math.random()*.12);
   }
   addCenterGlow(center.x,center.y,center.z);
 }
