@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v3.1-screen</div>
+<div class="ver">v3.2-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -153,7 +153,7 @@ const mat = new THREE.ShaderMaterial({
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(2.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      gl_PointSize=max(5.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -390,7 +390,8 @@ function makeImageData(url){
           else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,2000));
+        pixels.push(...edgePx.slice(0,900),...interPx.slice(0,80));
+        if(pixels.length>1000) pixels.length=1000;
       } else if(mode==='text_logo'){
         const edgePx=[],interPx=[];
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
@@ -408,8 +409,8 @@ function makeImageData(url){
           if(onEdge) edgePx.push(pobj); else interPx.push(pobj);
         }
         edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1500),...interPx.slice(0,1500));
-        pixels.sort(()=>Math.random()-.5); if(pixels.length>2500) pixels.length=2500;
+        pixels.push(...edgePx.slice(0,1100),...interPx.slice(0,450));
+        if(pixels.length>1550) pixels.length=1550;
       } else if(mode==='photo_landscape'){
         const P4=64,p4v=v=>Math.floor(v/P4)*P4+(P4>>1);
         const cmap=new Map();
@@ -513,7 +514,7 @@ function addCenterGlow(x,y,z){
 }
 function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
   const HALF=SHAPE_SCALE*.5;
-  const szB=(mode==='line_art')?0.6:(mode==='text_logo')?1.4:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const szB=(mode==='line_art')?0.78:(mode==='text_logo')?0.88:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
   const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
   const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
   const pxLen=Math.min(pixels.length,pixCap);
@@ -535,7 +536,11 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
         cr=Math.min(1,cr*1.20+.06);cg=Math.min(1,cg*1.20+.06);cb=Math.min(1,cb*1.20+.06);
       }
     }
-    const pSize=isPhotoMode?(0.03+Math.random()*.045)*szB:(0.035+Math.random()*.025)*szB;
+    const pSize=
+      (mode==='line_art') ?(0.030+Math.random()*0.014)*szB:
+      (mode==='text_logo')?(0.036+Math.random()*0.016)*szB:
+      isPhotoMode         ?(0.030+Math.random()*0.045)*szB:
+                           (0.055+Math.random()*0.030)*szB;
     addDirP(center.x,center.y,center.z,tx,ty,tz,cr,cg,cb,extraFrac,pSize,
       0.004+Math.random()*.003,isPhotoMode?1:0);
   }
