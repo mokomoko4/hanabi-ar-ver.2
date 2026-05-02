@@ -29,21 +29,6 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
          letter-spacing:.06em;white-space:nowrap;
          opacity:0;transition:opacity .35s;pointer-events:none;z-index:10001;}
 
-/* スタート画面 */
-#startScreen{position:fixed;inset:0;z-index:10003;background:rgba(0,0,10,.93);
-             display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
-#startScreen h1{font:bold 30px/1.5 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-                color:#fff;text-align:center;letter-spacing:.1em;
-                text-shadow:0 0 40px rgba(255,180,50,.9);}
-#worksCount{font:14px/1.8 'Hiragino Kaku Gothic ProN',sans-serif;
-            color:rgba(255,220,150,.8);letter-spacing:.06em;}
-.startBtn{padding:16px 52px;border:none;border-radius:50px;
-          background:linear-gradient(135deg,#ff6b00,#ffcc00);
-          color:#000;font-size:18px;font-weight:900;cursor:pointer;
-          font-family:'Hiragino Kaku Gothic ProN',sans-serif;letter-spacing:.1em;
-          box-shadow:0 0 30px rgba(255,150,0,.6),0 4px 20px rgba(0,0,0,.4);
-          transition:transform .15s;}
-.startBtn:active{transform:scale(.96);}
 
 </style>
 </head>
@@ -51,11 +36,6 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="sky"></div>
 
-<div id="startScreen">
-  <h1>🎆 花火ショー 🎆</h1>
-  <div id="worksCount">作品を読み込み中...</div>
-  <button class="startBtn" onclick="startShow()">ショーを開始 ▶</button>
-</div>
 
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
@@ -95,9 +75,7 @@ db.ref('works').on('value', snap => {
     }
   });
   works = newWorks;
-  const wc = document.getElementById('worksCount');
-  if(wc) wc.textContent = works.length > 0 ? `${works.length}作品が登録されています` : '作品を読み込み中...';
-  if(works.length > 0){
+if(works.length > 0){
     document.getElementById('hintTxt').textContent =
       `タップで絵を花火に！🎆 (${works.length}作品)`;
   }
@@ -1040,44 +1018,6 @@ function boom(){
 // 自動ショー（スタート画面・アナウンス・自動打ち上げ）
 // ══════════════════════════════════════════════
 
-let _showRunning = false;
-let _showIndex   = 0;
-
-function startShow(){
-  document.getElementById('startScreen').style.display = 'none';
-  _showRunning = true;
-  try{ if(audioCtx) audioCtx.resume(); }catch(_){}
-  _scheduleNext();
-}
-
-function _scheduleNext(){
-  if(!_showRunning) return;
-  if(works.length === 0){ setTimeout(_scheduleNext, 2000); return; }
-
-  const work = works[_showIndex % works.length];
-  _showIndex++;
-
-  _autoLaunch(work);
-  setTimeout(_scheduleNext, 8000);
-}
-
-function _autoLaunch(work){
-  const forward = new THREE.Vector3();
-  cam.getWorldDirection(forward);
-  const worldUp = new THREE.Vector3(0,1,0);
-  const snapRight = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
-  if(snapRight.lengthSq() < 0.01) snapRight.set(1,0,0);
-  const snapUp = new THREE.Vector3().crossVectors(snapRight, forward).normalize();
-
-  const cached = imageCache[work.url];
-  if(cached){
-    _doLaunch(cached, snapRight, snapUp);
-  } else {
-    makeImageData(work.url)
-      .then(d => { imageCache[work.url]=d; _doLaunch(d, snapRight, snapUp); })
-      .catch(()=>{});
-  }
-}
 
 // ══════════════════════════════════════════════
 // メインループ
