@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.4</div>
+<div class="ver">v1.5</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -339,21 +339,21 @@ function makeImageData(url){
       const colorVariety=cset.size;
 
       // ── モード分類（4モード）─────────────────────────
-      const isTextLike   = colorVariety<32&&edgeDensity>0.05&&coloredRatio>0.02&&coloredRatio<0.65;
-      const isLineArtLike= coloredRatio<0.22;
+      const isTextLike=colorVariety<32&&edgeDensity>0.05&&coloredRatio>0.02&&coloredRatio<0.65;
+      // character を line_art より先に判定（cr が低くても白背景＋多色ならキャラ）
       const looksCharacter=
-        whiteRatio>0.20&&
-        coloredRatio>=0.05&&coloredRatio<=0.55&&
-        colorVariety>=6&&colorVariety<=85&&
-        !isTextLike&&!isLineArtLike;
+        whiteRatio>0.18&&
+        coloredRatio>=0.01&&coloredRatio<=0.60&&
+        colorVariety>=10&&
+        !isTextLike;
 
       let mode;
       if(isTextLike){
         mode='text_logo';
-      } else if(isLineArtLike){
-        mode='line_art';
       } else if(looksCharacter){
         mode='character';
+      } else if(coloredRatio<0.22){
+        mode='line_art';
       } else {
         mode='illust';
       }
