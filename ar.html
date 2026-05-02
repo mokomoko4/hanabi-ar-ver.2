@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.6</div>
+<div class="ver">v1.7</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -137,7 +137,7 @@ const mat = new THREE.ShaderMaterial({
       vec4 mv=modelViewMatrix*vec4(position,1.);
       float lum=dot(aC,vec3(0.299,0.587,0.114));
       float szMod=0.82+lum*0.36;
-      gl_PointSize=max(10.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
+      gl_PointSize=max(11.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
     }`,
   fragmentShader:`
@@ -445,13 +445,12 @@ function makeImageData(url){
           const isOrange=r>170&&g>70&&g<160&&b<80;
           const isYellow=r>175&&g>145&&b<115;
           const nx=(lpx/PSIZ)*2-1, ny=(py/PSIZ)*2-1;
-          const pobj={nx,ny,r:r/255,g:g/255,b:b/255};
           if(isDark||isRed||isOrange){
-            featurePx.push(pobj);        // 目・口・ほっぺ・しっぽ
+            featurePx.push({nx,ny,r:r/255,g:g/255,b:b/255,type:1}); // 目・口・ほっぺ
           } else if(onBg||isYellow){
-            outlinePx.push(pobj);        // 外形輪郭・黄色線
+            outlinePx.push({nx,ny,r:r/255,g:g/255,b:b/255,type:0}); // 外形輪郭
           } else if(Math.random()<0.25){
-            fillPx.push(pobj);           // 面（少量のみ）
+            fillPx.push({nx,ny,r:r/255,g:g/255,b:b/255,type:2});    // 面（少量）
           }
         }
         outlinePx.sort(()=>Math.random()-.5);
@@ -574,9 +573,13 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, mode='charact
           cr=Math.min(1,cr*1.20+0.06); cg=Math.min(1,cg*1.20+0.06); cb=Math.min(1,cb*1.20+0.06);
         }
       }
-      const pSize = (mode==='character')
-        ? (0.055+Math.random()*0.030)*szB
-        : (0.07+Math.random()*0.05)*szB;
+      let pSize;
+      if(mode==='character'){
+        const szMul = px.type===1 ? 1.15 : px.type===2 ? 0.85 : 1.0; // feature大/fill小/outline標準
+        pSize=(0.070+Math.random()*0.035)*szB*szMul;
+      } else {
+        pSize=(0.07+Math.random()*0.05)*szB;
+      }
       addDirP(center.x,center.y,center.z, tx,ty,tz, cr,cg,cb, extraFrac, pSize, 0.004+Math.random()*0.003, 0);
     }
   }
