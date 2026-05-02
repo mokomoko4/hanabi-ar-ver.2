@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.10</div>
+<div class="ver">v1.10-allchar</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -347,16 +347,8 @@ function makeImageData(url){
         colorVariety>=10&&
         !isTextLike;
 
-      let mode;
-      if(isTextLike){
-        mode='text_logo';
-      } else if(looksCharacter){
-        mode='character';
-      } else if(coloredRatio<0.22){
-        mode='line_art';
-      } else {
-        mode='illust';
-      }
+      // 強制 character（全モード統一テスト）
+      const mode='character';
       console.log('[hanabi]',{mode,whiteRatio:+whiteRatio.toFixed(3),coloredRatio:+coloredRatio.toFixed(3),edgeDensity:+edgeDensity.toFixed(3),colorVariety});
 
       // ── ピクセルデータ ──────────────────────────────
