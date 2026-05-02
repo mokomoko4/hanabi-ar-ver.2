@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v2.7-screen</div>
+<div class="ver">v2.8-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -195,7 +195,7 @@ function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
   const dx=tx-sx, dy=ty-sy, dz=tz-sz;
   const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
   const nx=dx/len, ny=dy/len, nz=dz/len;
-  const totalSpeed=(len/15.5)*(1+extraFrac);
+  const totalSpeed=(len/45.0)*(1+extraFrac);
   const vx=nx*totalSpeed+(Math.random()-.5)*0.008;
   const vy=ny*totalSpeed+(Math.random()-.5)*0.008;
   const vz=nz*totalSpeed+(Math.random()-.5)*0.008;
@@ -494,7 +494,7 @@ function makeImageData(url){
 // ══════════════════════════════════════════════
 // 画像形状パーティクル
 // ══════════════════════════════════════════════
-const SHAPE_SCALE=14.0;
+const SHAPE_SCALE=7.0;
 const _DARK_PAL=[
   [1.00,.86,.47],[1.00,.63,.31],[1.00,.47,.71],[.63,.86,1.00],[1.00,1.00,.90],
 ];
@@ -524,7 +524,7 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
     const ty=center.y+snapRight.y*px.nx*HALF+snapUp.y*(-px.ny)*HALF;
     const tz=center.z+snapRight.z*px.nx*HALF+snapUp.z*(-px.ny)*HALF;
     const dist=Math.sqrt(px.nx*px.nx+px.ny*px.ny);
-    const extraFrac=0.8+dist*0.5+Math.random()*0.6;
+    const extraFrac=0.4+dist*0.2+Math.random()*0.3;
     let cr,cg,cb;
     if(mode==='face_portrait'){
       const brF=px.r*.299+px.g*.587+px.b*.114;
