@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v3.0-screen</div>
+<div class="ver">v3.1-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -389,9 +389,8 @@ function makeImageData(url){
           if(onEdge) edgePx.push(pobj);
           else if((py&1)===0&&(lpx&1)===0) interPx.push(pobj);
         }
-        edgePx.sort(()=>Math.random()-.5); interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,1400),...interPx.slice(0,600));
-        pixels.sort(()=>Math.random()-.5); if(pixels.length>2000) pixels.length=2000;
+        edgePx.sort(()=>Math.random()-.5);
+        pixels.push(...edgePx.slice(0,2000));
       } else if(mode==='text_logo'){
         const edgePx=[],interPx=[];
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
@@ -514,7 +513,7 @@ function addCenterGlow(x,y,z){
 }
 function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
   const HALF=SHAPE_SCALE*.5;
-  const szB=(mode==='line_art')?1.5:(mode==='text_logo')?1.4:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
+  const szB=(mode==='line_art')?0.6:(mode==='text_logo')?1.4:(mode==='face_portrait')?1.0:(mode==='photo_landscape')?.85:1.0;
   const isPhotoMode=(mode==='photo_landscape'||mode==='face_portrait');
   const pixCap=isPhotoMode?Math.floor(_IMG_MAX*.40):_IMG_MAX;
   const pxLen=Math.min(pixels.length,pixCap);
