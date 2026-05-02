@@ -69,7 +69,7 @@ canvas{position:fixed;inset:0;z-index:100;pointer-events:none;}
   <div class="ann-suffix">の花火！</div>
 </div>
 
-<div class="ver">v2.5-screen</div>
+<div class="ver">v2.6-screen</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -126,7 +126,6 @@ const bC = new Float32Array(MAX*3);
 const bA = new Float32Array(MAX);
 const bS = new Float32Array(MAX);
 const bR = new Float32Array(MAX);
-const bVel = new Float32Array(MAX*3); // 速度（ストリーク用）
 
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.BufferAttribute(bP,3));
@@ -134,7 +133,6 @@ geo.setAttribute('aC',       new THREE.BufferAttribute(bC,3));
 geo.setAttribute('aA',       new THREE.BufferAttribute(bA,1));
 geo.setAttribute('aS',       new THREE.BufferAttribute(bS,1));
 geo.setAttribute('aR',       new THREE.BufferAttribute(bR,1));
-geo.setAttribute('aVel',     new THREE.BufferAttribute(bVel,3));
 
 const _dpr      = Math.min(window.devicePixelRatio || 1, 2);
 const _isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -149,9 +147,7 @@ const mat = new THREE.ShaderMaterial({
   vertexShader:`
     uniform float uSizeBoost;
     attribute vec3 aC; attribute float aA; attribute float aS; attribute float aR;
-    attribute vec3 aVel;
     varying vec3 vC; varying float vA; varying float vR;
-    varying vec2 vStreak;
     void main(){
       vC=aC; vA=aA; vR=aR;
       vec4 mv=modelViewMatrix*vec4(position,1.);
@@ -159,29 +155,11 @@ const mat = new THREE.ShaderMaterial({
       float szMod=0.82+lum*0.36;
       gl_PointSize=max(2.0, aS*uSizeBoost*szMod*(820.0/-mv.z));
       gl_Position=projectionMatrix*mv;
-      // 速度方向をスクリーン座標に投影してストリーク方向を計算
-      vec4 mvAhead=modelViewMatrix*vec4(position+aVel*2.5,1.);
-      vec4 pA=projectionMatrix*mvAhead;
-      vec2 dir=(pA.xy/pA.w)-(gl_Position.xy/gl_Position.w);
-      float spd=length(dir);
-      vStreak=spd>0.001 ? normalize(dir)*min(spd*20.0,0.42) : vec2(0.0);
     }`,
   fragmentShader:`
     varying vec3 vC; varying float vA; varying float vR;
-    varying vec2 vStreak;
     void main(){
-      vec2 uv=gl_PointCoord-vec2(0.5);
-      float streakAmt=length(vStreak);
-      float d;
-      if(vR>0.5 || streakAmt<0.02){
-        d=length(uv)*2.0;
-      } else {
-        vec2 sd=vStreak/streakAmt;
-        float along=dot(uv,sd);
-        float perp=dot(uv,vec2(-sd.y,sd.x));
-        float elong=1.0+streakAmt*5.0;
-        d=length(vec2(along/elong,perp*2.5))*2.0;
-      }
+      float d=length(gl_PointCoord-vec2(.5))*2.;
       if(vR>0.5){
         if(d>1.0) discard;
         float soft=smoothstep(1.0,0.15,d);
@@ -221,8 +199,7 @@ function addDirP(sx,sy,sz, tx,ty,tz, r,g,b, extraFrac, s, decay, round=0){
   const vx=nx*totalSpeed+(Math.random()-.5)*0.008;
   const vy=ny*totalSpeed+(Math.random()-.5)*0.008;
   const vz=nz*totalSpeed+(Math.random()-.5)*0.008;
-  const adv=Math.random()*5;
-  addP(sx+vx*adv, sy+vy*adv, sz+vz*adv, vx,vy,vz, r,g,b, decay, s, 0, round);
+  addP(sx,sy,sz, vx,vy,vz, r,g,b, decay, s, 0, round);
 }
 
 function updateParticles(){
@@ -243,7 +220,6 @@ function updateParticles(){
     bP[cnt*3]=p.x; bP[cnt*3+1]=p.y; bP[cnt*3+2]=p.z;
     bC[cnt*3]=p.r; bC[cnt*3+1]=p.g; bC[cnt*3+2]=p.b;
     bA[cnt]=p.a; bS[cnt]=effS; bR[cnt]=p.round||0;
-    bVel[cnt*3]=p.vx; bVel[cnt*3+1]=p.vy; bVel[cnt*3+2]=p.vz;
     cnt++;
   }
   for(let j=cnt; j<Math.min(cnt+40,MAX); j++) bA[j]=0;
@@ -253,7 +229,6 @@ function updateParticles(){
   geo.attributes.aA.needsUpdate=true;
   geo.attributes.aS.needsUpdate=true;
   geo.attributes.aR.needsUpdate=true;
-  geo.attributes.aVel.needsUpdate=true;
 }
 
 // ══════════════════════════════════════════════
@@ -549,10 +524,7 @@ function showImageParticleShape(center,pixels,snapRight,snapUp,mode='illust'){
     const ty=center.y+snapRight.y*px.nx*HALF+snapUp.y*(-px.ny)*HALF;
     const tz=center.z+snapRight.z*px.nx*HALF+snapUp.z*(-px.ny)*HALF;
     const dist=Math.sqrt(px.nx*px.nx+px.ny*px.ny);
-    const extraFrac=(mode==='line_art')?0.03+dist*.05+Math.random()*.05
-      :(mode==='text_logo')?0.05+dist*.08+Math.random()*.07
-      :(mode==='photo_landscape'||mode==='face_portrait')?0.04+dist*.06+Math.random()*.06
-      :0.25+dist*.18+Math.random()*.20;
+    const extraFrac=0.8+dist*0.5+Math.random()*0.6;
     let cr,cg,cb;
     if(mode==='face_portrait'){
       const brF=px.r*.299+px.g*.587+px.b*.114;
