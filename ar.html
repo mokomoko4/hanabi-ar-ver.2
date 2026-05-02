@@ -377,7 +377,7 @@ function makeImageData(url){
       } else if(coloredRatio<0.25){
         mode='line_art';
       } else {
-        mode='illust';
+        mode='character';
       }
       console.log(`[hanabi] mode=${mode} colored=${coloredRatio.toFixed(2)} edge=${edgeDensity.toFixed(2)} variety=${colorVariety} skin=${skinRatio.toFixed(2)}`);
 
@@ -566,36 +566,54 @@ function makeImageData(url){
         }
         if(pixels.length>700){ pixels.sort(()=>Math.random()-.5); pixels.length=700; }
       } else {
-        // illust：輪郭優先サンプリング＋円形マスク＋内部50%間引き
-        const edgePx=[], interPx=[];
-        const _edx=[2,-2,0,0], _edy=[0,0,2,-2];
-        for(let py=0;py<PSIZ;py+=2){
-          for(let lpx=0;lpx<PSIZ;lpx+=2){
-            const nx=(lpx/PSIZ)*2-1, ny=(py/PSIZ)*2-1;
-            const dist=Math.sqrt(nx*nx+ny*ny);
-            if(dist>1.0) continue;
-            const t=Math.max(0,Math.min(1,(dist-1.0)/(0.2-1.0)));
-            if(Math.random()>t*t*(3-2*t)) continue;
+        // character：シルエット＋特徴点の3レイヤー
+        // 白い体も背景扱いせず、フラッドフィルで真の背景のみ除外
+        const bgMask=_charFloodBg(pd,PSIZ);
+        // バウンディングボックスでキャラ本体にフィット
+        let bx0=PSIZ,bx1=0,by0=PSIZ,by1=0;
+        for(let y=0;y<PSIZ;y++) for(let x=0;x<PSIZ;x++){
+          if(!bgMask[y*PSIZ+x]){bx0=Math.min(bx0,x);bx1=Math.max(bx1,x);by0=Math.min(by0,y);by1=Math.max(by1,y);}
+        }
+        if(bx1<=bx0){bx0=0;bx1=PSIZ-1;by0=0;by1=PSIZ-1;}
+        const bmax=Math.max(bx1-bx0+1,by1-by0+1);
+        const charCX=(bx0+bx1)/2, charCY=(by0+by1)/2;
+
+        const outlinePx=[],featurePx=[],fillPx=[];
+        for(let py=by0;py<=by1;py++){
+          for(let lpx=bx0;lpx<=bx1;lpx++){
+            if(bgMask[py*PSIZ+lpx]) continue;
             const i=(py*PSIZ+lpx)*4;
-            const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
-            if(!isColored(r,g,b,a)) continue;
-            // 4近傍で輪郭判定：背景接触 or 輝度差>40 → 優先残留
-            const lum=r*0.299+g*0.587+b*0.114;
+            const r=pd[i]/255,g=pd[i+1]/255,b=pd[i+2]/255;
+            const nx=(lpx-charCX)/(bmax/2), ny=(py-charCY)/(bmax/2);
+            // 輪郭：背景に隣接するピクセル
             let onEdge=false;
-            for(let c=0;c<4;c++){
-              const bx=lpx+_edx[c], by=py+_edy[c];
-              if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break;}
-              const ni=(by*PSIZ+bx)*4;
-              if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])||
-                 Math.abs(lum-(pd[ni]*0.299+pd[ni+1]*0.587+pd[ni+2]*0.114))>40){onEdge=true;break;}
+            outer:for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+              if(!kx&&!ky) continue;
+              const ex=lpx+kx,ey=py+ky;
+              if(ex<0||ex>=PSIZ||ey<0||ey>=PSIZ){onEdge=true;break outer;}
+              if(bgMask[ey*PSIZ+ex]){onEdge=true;break outer;}
             }
-            (onEdge?edgePx:interPx).push({nx, ny, r:r/255, g:g/255, b:b/255});
+            // 特徴点：局所コントラスト高 or 高彩度（目・ほっぺ・耳など）
+            const lum=r*0.299+g*0.587+b*0.114;
+            let maxC=0;
+            for(let ky=-2;ky<=2;ky++) for(let kx=-2;kx<=2;kx++){
+              const ex=lpx+kx,ey=py+ky;
+              if(ex<0||ex>=PSIZ||ey<0||ey>=PSIZ) continue;
+              const ni=(ey*PSIZ+ex)*4;
+              maxC=Math.max(maxC,Math.abs(lum-(pd[ni]/255*0.299+pd[ni+1]/255*0.587+pd[ni+2]/255*0.114)));
+            }
+            const isSat=(Math.max(r,g,b)-Math.min(r,g,b))>0.30&&lum>0.08&&lum<0.92;
+            const pobj={nx,ny,r,g,b};
+            if(onEdge) outlinePx.push(pobj);
+            else if(maxC>0.30||isSat) featurePx.push(pobj);
+            else fillPx.push(pobj);
           }
         }
-        // 輪郭は全保持、内部は50%間引いてから結合
-        interPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx,...interPx.slice(0,Math.floor(interPx.length*0.35)));
-        if(pixels.length>_IMG_MAX){pixels.sort(()=>Math.random()-.5); pixels.length=_IMG_MAX;}
+        outlinePx.sort(()=>Math.random()-.5);
+        featurePx.sort(()=>Math.random()-.5);
+        fillPx.sort(()=>Math.random()-.5);
+        pixels.push(...outlinePx.slice(0,380),...featurePx.slice(0,420),...fillPx.slice(0,300));
+        if(pixels.length>1100){pixels.sort(()=>Math.random()-.5);pixels.length=1100;}
       }
 
       // デバッグ表示
@@ -640,6 +658,38 @@ function mapFireworkColor(r, g, b){
   ];
 }
 
+// キャラクターモード：エッジから背景をフラッドフィルで検出（白い体を背景扱いしない）
+function _charFloodBg(d, SZ){
+  const bg=new Uint8Array(SZ*SZ);
+  const stk=[];
+  function tryAdd(x,y){
+    if(x<0||x>=SZ||y<0||y>=SZ) return;
+    const k=y*SZ+x; if(bg[k]) return;
+    const i=k*4;
+    if(d[i+3]<15||(d[i]>225&&d[i+1]>225&&d[i+2]>225)){bg[k]=1;stk.push(k);}
+  }
+  for(let n=0;n<SZ;n++){tryAdd(n,0);tryAdd(n,SZ-1);tryAdd(0,n);tryAdd(SZ-1,n);}
+  while(stk.length){
+    const k=stk.pop(), x=k%SZ, y=(k/SZ)|0;
+    tryAdd(x-1,y);tryAdd(x+1,y);tryAdd(x,y-1);tryAdd(x,y+1);
+  }
+  return bg;
+}
+
+// キャラクターモード：花火発光色マッピング（白体→暖白/金、黒→濃金/オレンジ）
+function _mapCharColor(r,g,b){
+  const lum=r*0.299+g*0.587+b*0.114;
+  if(lum>0.82){
+    return Math.random()<0.6?[1.0,0.97,0.82]:[1.0,1.0,0.92];
+  }
+  if(lum<0.18){
+    const p=Math.random();
+    return p<0.4?[1.0,0.78,0.22]:p<0.7?[1.0,0.55,0.18]:[0.95,0.88,0.45];
+  }
+  const boost=lum<0.50?1.45:lum<0.70?1.25:1.10;
+  return [Math.min(1,r*boost+0.05),Math.min(1,g*boost+0.05),Math.min(1,b*boost+0.05)];
+}
+
 // 爆発中心に0.5秒残る残光グロー（見失い防止）
 function addCenterGlow(x, y, z){
   for(let i=0; i<5; i++){
@@ -653,43 +703,46 @@ function addCenterGlow(x, y, z){
   }
 }
 
-function showImageParticleShape(center, pixels, snapRight, snapUp, mode='illust'){
-  const HALF = SHAPE_SCALE * 0.5;
-  const szB  = (mode==='line_art') ? 1.5 : (mode==='text_logo') ? 1.4 : (mode==='face_portrait') ? 1.0 : (mode==='photo_landscape') ? 0.85 : 1.0;
+function showImageParticleShape(center, pixels, snapRight, snapUp, mode='character'){
+  const scaleMul = (mode==='character') ? 0.62 : 0.50;
+  const HALF = SHAPE_SCALE * scaleMul;
+  const szB  = (mode==='line_art') ? 1.5 : (mode==='text_logo') ? 1.4 : (mode==='face_portrait') ? 1.0 : (mode==='photo_landscape') ? 0.85 : (mode==='character') ? 1.15 : 1.0;
   const isPhotoMode = (mode==='photo_landscape'||mode==='face_portrait');
-  // 端末性能に応じた粒子上限（写真モードはさらに削減・他は1.3倍まで許容）
   const pixCap = isPhotoMode ? Math.floor(_IMG_MAX*0.40) : _IMG_MAX;
   const pxLen  = Math.min(pixels.length, pixCap);
   for(let _pi=0; _pi<pxLen; _pi++){
     const px = pixels[_pi];
-    // target = 画像ピクセルのワールド座標（通過点）
     const tx = center.x + snapRight.x*px.nx*HALF + snapUp.x*(-px.ny)*HALF;
     const ty = center.y + snapRight.y*px.nx*HALF + snapUp.y*(-px.ny)*HALF;
     const tz = center.z + snapRight.z*px.nx*HALF + snapUp.z*(-px.ny)*HALF;
     const dist = Math.sqrt(px.nx*px.nx + px.ny*px.ny);
-    // 到達f=15.5/(1+extraFrac): line_art→14f(0.23s)/text_logo→13f(0.22s)/photo→13f(0.22s)/illust→10-12f
     const extraFrac = (mode==='line_art')
       ? 0.03 + dist*0.05 + Math.random()*0.05
       : (mode==='text_logo')
         ? 0.05 + dist*0.08 + Math.random()*0.07
         : (mode==='photo_landscape'||mode==='face_portrait')
           ? 0.04 + dist*0.06 + Math.random()*0.06
-          : 0.25 + dist*0.18 + Math.random()*0.20;
+          : (mode==='character')
+            ? 0.08 + dist*0.06 + Math.random()*0.06  // 形で一瞬止まる→ゆっくり崩れる
+            : 0.25 + dist*0.18 + Math.random()*0.20;
     let cr,cg,cb;
     if(mode==='face_portrait'){
-      // 肌色・髪色はhueを保持して発光補正（髪の暗色をgold変換せず顔の形が読める）
       const brF=px.r*0.299+px.g*0.587+px.b*0.114;
       const bst=brF<0.30?2.8:brF<0.55?1.45:1.20;
       cr=Math.min(1,px.r*bst+0.04); cg=Math.min(1,px.g*bst+0.02); cb=Math.min(1,px.b*bst+0.02);
+    } else if(mode==='character'){
+      [cr,cg,cb]=_mapCharColor(px.r,px.g,px.b);
     } else {
       [cr,cg,cb]=mapFireworkColor(px.r,px.g,px.b);
-      // text_logo: 元色を発光補正（夜空で文字色が読める輝度に）
       if(mode==='text_logo'){
         cr=Math.min(1,cr*1.20+0.06); cg=Math.min(1,cg*1.20+0.06); cb=Math.min(1,cb*1.20+0.06);
       }
     }
-    // 写真モード：丸形粒子・サイズランダム幅広め / 線画・文字：シャープ均一
-    const pSize = isPhotoMode ? (0.06+Math.random()*0.09)*szB : (0.07+Math.random()*0.05)*szB;
+    const pSize = isPhotoMode
+      ? (0.06+Math.random()*0.09)*szB
+      : (mode==='character')
+        ? (0.052+Math.random()*0.032)*szB
+        : (0.07+Math.random()*0.05)*szB;
     addDirP(
       center.x, center.y, center.z,
       tx, ty, tz,
