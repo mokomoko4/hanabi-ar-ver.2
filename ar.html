@@ -10,7 +10,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;}
-video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+#sky{position:fixed;inset:0;z-index:0;
+     background:radial-gradient(ellipse at 50% 110%, #0d0030 0%, #050018 45%, #000008 100%);}
 canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 #ui{position:fixed;bottom:0;left:0;right:0;padding-bottom:46px;z-index:10001;
     pointer-events:none;display:flex;justify-content:center;}
@@ -21,29 +22,6 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 @keyframes hp{0%,100%{opacity:.4}55%{opacity:.95}}
 .ver{position:fixed;bottom:8px;right:12px;z-index:10001;
      font:10px/1 monospace;color:rgba(255,255,255,.28);pointer-events:none;}
-#launchDir{position:fixed;top:0;left:0;right:0;z-index:10001;pointer-events:none;
-           display:flex;flex-direction:column;align-items:center;padding-top:22px;gap:4px;
-           opacity:0;transition:opacity .2s;}
-#launchDir.show{opacity:1;}
-.ud-arrow{font:40px/1 sans-serif;color:#ffdd00;
-          text-shadow:0 0 20px #ff8800,0 0 40px #ff4400;
-          animation:udb .55s ease-in-out infinite;}
-@keyframes udb{0%,100%{transform:translateY(4px);}50%{transform:translateY(-6px);}}
-.ud-label{font:11px/1 'Hiragino Kaku Gothic ProN',sans-serif;
-          color:rgba(255,220,80,.9);letter-spacing:.12em;
-          text-shadow:0 2px 12px rgba(255,120,0,.9);}
-#xrbtn{position:fixed;top:18px;right:16px;z-index:10001;pointer-events:auto;
-       padding:8px 18px;border:1px solid rgba(255,255,255,.3);
-       background:rgba(0,0,0,.45);border-radius:20px;color:#fff;
-       font-size:12px;cursor:pointer;display:none;
-       font-family:'Hiragino Kaku Gothic ProN',sans-serif;}
-#perm{position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.88);display:none;
-      flex-direction:column;align-items:center;justify-content:center;
-      gap:22px;padding:40px;text-align:center;color:#fff;
-      font:13px/1.9 'Hiragino Kaku Gothic ProN',sans-serif;}
-.pbtn{padding:13px 36px;border:none;border-radius:14px;
-      background:linear-gradient(135deg,#ff6b00,#ffcc00);
-      color:#000;font-size:15px;font-weight:900;cursor:pointer;}
 #fw-hint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
          background:rgba(0,0,0,.62);color:#fff;
          padding:9px 22px;border-radius:24px;
@@ -67,25 +45,11 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
           transition:transform .15s;}
 .startBtn:active{transform:scale(.96);}
 
-/* アナウンス */
-#announce{position:fixed;inset:0;z-index:150;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-          pointer-events:none;opacity:0;transition:opacity .5s;}
-#announce.show{opacity:1;}
-.ann-sub{font:15px/1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-         color:rgba(255,210,80,.9);letter-spacing:.3em;
-         text-shadow:0 0 16px rgba(255,160,0,.9);}
-.ann-name{font:bold 60px/1.1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-          color:#fff;letter-spacing:.05em;text-align:center;max-width:90vw;
-          text-shadow:0 0 40px rgba(255,200,50,1),0 0 80px rgba(255,100,0,.8);
-          animation:ann-pulse .7s ease-in-out infinite;}
-@keyframes ann-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
-.ann-suffix{font:30px/1 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
-            color:rgba(255,220,100,.9);letter-spacing:.1em;
-            text-shadow:0 0 20px rgba(255,180,0,.8);}
 </style>
 </head>
 <body>
+
+<div id="sky"></div>
 
 <div id="startScreen">
   <h1>🎆 花火ショー 🎆</h1>
@@ -93,31 +57,10 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
   <button class="startBtn" onclick="startShow()">ショーを開始 ▶</button>
 </div>
 
-<div id="announce">
-  <div class="ann-sub">✦ 次の花火 ✦</div>
-  <div class="ann-name" id="annName"></div>
-  <div class="ann-suffix">の花火！</div>
-</div>
 
-<video id="vid" autoplay playsinline muted></video>
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
-
-<div id="launchDir">
-  <div class="ud-arrow">↑</div>
-  <div class="ud-label">打ち上げ中</div>
-</div>
-
-<div id="fw-hint">少し上を向いてね ✨</div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.1+show</div>
-<button id="xrbtn" onclick="enterXR()">AR モード ✦</button>
-<div id="perm">
-  <div style="font-size:14px;line-height:2;opacity:.85">
-    スマホを空に向けると<br>花火が空に見えます<br>
-    <small style="opacity:.6;font-size:11px">センサー使用を許可してください</small>
-  </div>
-  <button class="pbtn" onclick="grantPerm()">許可して始める ▶</button>
-</div>
+<div class="ver">v1.1+show2</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -164,69 +107,16 @@ db.ref('works').on('value', snap => {
 // Three.js セットアップ
 // ══════════════════════════════════════════════
 
-const ren = new THREE.WebGLRenderer({alpha:true, antialias:true});
-ren.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Retina過剰解像度を抑制
+const ren = new THREE.WebGLRenderer({antialias:true});
+ren.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 ren.setSize(innerWidth, innerHeight);
-ren.setClearColor(0x000000, 0);
+ren.setClearColor(0x000000, 1);
 document.body.appendChild(ren.domElement);
 
 const scene = new THREE.Scene();
 const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 500);
 cam.position.set(0, 0, 0);
 
-// ══════════════════════════════════════════════
-// カメラ映像
-// ══════════════════════════════════════════════
-
-const vid = document.getElementById('vid');
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: {ideal:'environment'}, width: {ideal:1280} }
-})
-.then(s => { vid.srcObject = s; vid.play().catch(()=>{}); })
-.catch(() => { vid.style.display='none'; document.body.style.background='#04001a'; });
-
-// ══════════════════════════════════════════════
-// 打ち上げ方向インジケーター
-// ══════════════════════════════════════════════
-
-const arrowHelper = new THREE.ArrowHelper(
-  new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0),
-  8, 0xffcc00, 1.0, 0.5
-);
-arrowHelper.line.material.blending    = THREE.AdditiveBlending;
-arrowHelper.line.material.transparent = true;
-arrowHelper.cone.material.blending    = THREE.AdditiveBlending;
-arrowHelper.cone.material.transparent = true;
-arrowHelper.visible = false;
-scene.add(arrowHelper);
-
-let arrowFrames = 0;
-const launchDirEl = document.getElementById('launchDir');
-
-function showLaunchIndicator(start, end){
-  const dir = end.clone().sub(start).normalize();
-  const len = start.distanceTo(end);
-  arrowHelper.position.copy(start);
-  arrowHelper.setDirection(dir);
-  arrowHelper.setLength(len, Math.min(1.2,len*.15), Math.min(0.55,len*.07));
-  arrowHelper.visible = true;
-  arrowHelper.line.material.opacity = 0.85;
-  arrowHelper.cone.material.opacity = 0.85;
-  arrowFrames = 100;
-  launchDirEl.classList.add('show');
-}
-
-function updateArrowIndicator(){
-  if(arrowFrames <= 0){
-    arrowHelper.visible = false;
-    launchDirEl.classList.remove('show');
-    return;
-  }
-  arrowFrames--;
-  const t = arrowFrames / 100;
-  arrowHelper.line.material.opacity = 0.85 * t;
-  arrowHelper.cone.material.opacity = 0.85 * t;
-}
 
 // ══════════════════════════════════════════════
 // パーティクル GPU バッファ
@@ -831,7 +721,6 @@ function launchVector(start, end, pal, onBurst=null){
   const dir = end.clone().sub(start).normalize();
   rockets.push({ start:start.clone(), end:end.clone(), dir,
                  pos:new THREE.Vector3(), t:0, pal, trail:0, onBurst });
-  showLaunchIndicator(start, end);
   whistle();
 }
 
@@ -964,84 +853,12 @@ document.addEventListener('touchstart', onTap, {passive:true});
 document.addEventListener('click', onTap);
 
 // ══════════════════════════════════════════════
-// ジャイロ
+// 固定カメラ（ジャイロなし）
 // ══════════════════════════════════════════════
-
-let gyroOn = false;
-let gA=0, gB=0, gG=0;
-const euG = new THREE.Euler();
-const q1G = new THREE.Quaternion(-Math.sqrt(.5),0,0,Math.sqrt(.5));
-const q2G = new THREE.Quaternion();
-const zeeG = new THREE.Vector3(0,0,1);
-const R = THREE.MathUtils.degToRad;
 
 function updateCamera(){
-  if(xrActive) return;
-  if(!gyroOn){
-    cam.rotation.order='YXZ';
-    cam.rotation.set(-0.28,0,0);
-    return;
-  }
-  const heading = R(360-gA);
-  euG.set(R(gB),R(gA),R(-gG),'YXZ');
-  cam.quaternion.setFromEuler(euG);
-  cam.quaternion.multiply(q1G);
-  q2G.setFromAxisAngle(zeeG,-heading);
-  cam.quaternion.multiply(q2G);
-}
-
-function startGyro(){
-  gyroOn = true;
-  window.addEventListener('deviceorientation', e=>{
-    if(e.alpha===null) return;
-    gA=e.alpha; gB=e.beta; gG=e.gamma;
-  }, true);
-}
-
-function checkPerm(){
-  if(typeof DeviceOrientationEvent==='undefined') return;
-  if(typeof DeviceOrientationEvent.requestPermission==='function'){
-    document.getElementById('perm').style.display='flex';
-  } else { startGyro(); }
-}
-
-function grantPerm(){
-  DeviceOrientationEvent.requestPermission()
-    .then(s=>{
-      document.getElementById('perm').style.display='none';
-      if(s==='granted') startGyro();
-    })
-    .catch(()=>{ document.getElementById('perm').style.display='none'; });
-}
-
-// ══════════════════════════════════════════════
-// WebXR
-// ══════════════════════════════════════════════
-
-let xrActive = false;
-(async()=>{
-  if(!navigator.xr) return;
-  try{
-    const ok = await navigator.xr.isSessionSupported('immersive-ar');
-    if(ok) document.getElementById('xrbtn').style.display='block';
-  }catch(_){}
-})();
-
-async function enterXR(){
-  try{
-    const s = await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['local'],
-      optionalFeatures:['dom-overlay'],
-      domOverlay:{root:document.getElementById('ui')}
-    });
-    ren.xr.enabled=true; xrActive=true;
-    await ren.xr.setSession(s);
-    ren.setAnimationLoop(()=>{ tick(); ren.render(scene,cam); });
-    s.addEventListener('end',()=>{
-      ren.xr.enabled=false; xrActive=false;
-      ren.setAnimationLoop(null);
-    });
-  }catch(e){ console.warn('WebXR:',e); }
+  cam.rotation.order='YXZ';
+  cam.rotation.set(-0.28,0,0);
 }
 
 // ══════════════════════════════════════════════
@@ -1177,15 +994,7 @@ function startShow(){
   document.getElementById('startScreen').style.display = 'none';
   _showRunning = true;
   try{ if(audioCtx) audioCtx.resume(); }catch(_){}
-  checkPerm();
   _scheduleNext();
-}
-
-function _showAnnounce(name){
-  const el = document.getElementById('announce');
-  document.getElementById('annName').textContent = name || '???';
-  el.classList.add('show');
-  setTimeout(()=>{ el.classList.remove('show'); }, 3000);
 }
 
 function _scheduleNext(){
@@ -1195,13 +1004,8 @@ function _scheduleNext(){
   const work = works[_showIndex % works.length];
   _showIndex++;
 
-  _showAnnounce(work.name || work.authorName || '作者不明');
-
-  setTimeout(()=>{
-    if(!_showRunning) return;
-    _autoLaunch(work);
-    setTimeout(_scheduleNext, 8000);
-  }, 2500);
+  _autoLaunch(work);
+  setTimeout(_scheduleNext, 8000);
 }
 
 function _autoLaunch(work){
@@ -1229,7 +1033,6 @@ function _autoLaunch(work){
 function tick(){
   updateCamera();
   updateRockets();
-  updateArrowIndicator();
   updateParticles();
 }
 
