@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.7</div>
+<div class="ver">v1.8</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -576,7 +576,7 @@ function showImageParticleShape(center, pixels, snapRight, snapUp, mode='charact
       let pSize;
       if(mode==='character'){
         const szMul = px.type===1 ? 1.15 : px.type===2 ? 0.85 : 1.0; // feature大/fill小/outline標準
-        pSize=(0.070+Math.random()*0.035)*szB*szMul;
+        pSize=(0.105+Math.random()*0.053)*szB*szMul;
       } else {
         pSize=(0.07+Math.random()*0.05)*szB;
       }
