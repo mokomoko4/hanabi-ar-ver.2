@@ -40,7 +40,7 @@ canvas{position:fixed;inset:0;z-index:9999;pointer-events:none;}
 
 <div id="ui"><span class="hint" id="hintTxt">タップで花火打ち上げ 🎆</span></div>
 <div id="pxdbg" style="position:fixed;top:8px;left:10px;z-index:10001;font:10px/1 monospace;color:rgba(255,255,100,.55);pointer-events:none;"></div>
-<div class="ver">v1.5</div>
+<div class="ver">v1.6</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -418,39 +418,47 @@ function makeImageData(url){
         pixels.sort(()=>Math.random()-.5);
         if(pixels.length>2500) pixels.length=2500;
       } else if(mode==='character'){
-        // character：edgePx/featurePx/bodyPx の3レイヤー
-        // 純白(>248)のみ背景、白っぽい体色は残す
-        const edgePx=[],featurePx=[],bodyPx=[];
+        // PASS1: 有色ビットマップ
+        const clr=new Uint8Array(PSIZ*PSIZ);
         for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
           const i=(py*PSIZ+lpx)*4;
-          const r=pd[i],g=pd[i+1],b=pd[i+2],a=pd[i+3];
-          if(!isColored(r,g,b,a)) continue;
+          if(isColored(pd[i],pd[i+1],pd[i+2],pd[i+3])) clr[py*PSIZ+lpx]=1;
+        }
+        // PASS2: 輪郭抽出・ノイズ除去・3レイヤー分類
+        const outlinePx=[],featurePx=[],fillPx=[];
+        for(let py=0;py<PSIZ;py++) for(let lpx=0;lpx<PSIZ;lpx++){
+          if(!clr[py*PSIZ+lpx]) continue;
+          const i=(py*PSIZ+lpx)*4;
+          const r=pd[i],g=pd[i+1],b=pd[i+2];
           const lum=r*0.299+g*0.587+b*0.114;
-          const isDark=lum<90;
-          const isRed=r>180&&g<120&&b<120;
-          const isOrange=r>180&&g>80&&g<180&&b<90;
-          const isYellow=r>180&&g>160&&b<120;
-          const isBodyLight=r>215&&g>210&&b>185&&!(r>248&&g>248&&b>248);
-          // 近傍チェックで輪郭判定
-          let onEdge=false;
-          outer:for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
+          let neighborCount=0, onBg=false;
+          for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){
             if(!kx&&!ky) continue;
             const bx=lpx+kx,by=py+ky;
-            if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onEdge=true;break outer;}
-            const ni=(by*PSIZ+bx)*4;
-            if(!isColored(pd[ni],pd[ni+1],pd[ni+2],pd[ni+3])){onEdge=true;break outer;}
+            if(bx<0||bx>=PSIZ||by<0||by>=PSIZ){onBg=true;continue;}
+            if(clr[by*PSIZ+bx]) neighborCount++; else onBg=true;
           }
+          // 孤立ノイズ除去：有色隣接1個以下は捨てる
+          if(neighborCount<=1) continue;
+          const isDark  =lum<80;
+          const isRed   =r>160&&g<100&&b<100;
+          const isOrange=r>170&&g>70&&g<160&&b<80;
+          const isYellow=r>175&&g>145&&b<115;
           const nx=(lpx/PSIZ)*2-1, ny=(py/PSIZ)*2-1;
           const pobj={nx,ny,r:r/255,g:g/255,b:b/255};
-          if(isDark||isRed||isOrange) featurePx.push(pobj);
-          else if(onEdge||isYellow) edgePx.push(pobj);
-          else if(isBodyLight||Math.random()<0.35) bodyPx.push(pobj);
+          if(isDark||isRed||isOrange){
+            featurePx.push(pobj);        // 目・口・ほっぺ・しっぽ
+          } else if(onBg||isYellow){
+            outlinePx.push(pobj);        // 外形輪郭・黄色線
+          } else if(Math.random()<0.25){
+            fillPx.push(pobj);           // 面（少量のみ）
+          }
         }
-        edgePx.sort(()=>Math.random()-.5);
+        outlinePx.sort(()=>Math.random()-.5);
         featurePx.sort(()=>Math.random()-.5);
-        bodyPx.sort(()=>Math.random()-.5);
-        pixels.push(...edgePx.slice(0,900),...featurePx.slice(0,450),...bodyPx.slice(0,500));
-        if(pixels.length>1500){pixels.sort(()=>Math.random()-.5);pixels.length=1500;}
+        fillPx.sort(()=>Math.random()-.5);
+        pixels.push(...outlinePx.slice(0,1000),...featurePx.slice(0,400),...fillPx.slice(0,200));
+        if(pixels.length>1400){pixels.sort(()=>Math.random()-.5);pixels.length=1400;}
       } else {
         // illust：輪郭優先+内部間引き
         const edgePx=[],interPx=[];
