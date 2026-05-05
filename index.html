@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>花火AR</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Camera background -->
+  <video id="camera-video" autoplay playsinline muted></video>
+
+  <!-- Three.js canvas overlay -->
+  <canvas id="three-canvas"></canvas>
+
+  <!-- UI Layer -->
+  <div id="ui-layer">
+
+    <!-- Upload Screen -->
+    <div id="screen-upload" class="screen active">
+      <div class="center-box">
+        <h1>花火AR</h1>
+        <p>白背景の絵をアップロードして<br>花火にしよう！</p>
+        <label class="upload-btn" for="file-input">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          絵を選ぶ
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/*">
+        </label>
+      </div>
+    </div>
+
+    <!-- Processing Screen -->
+    <div id="screen-processing" class="screen">
+      <div class="center-box">
+        <div class="spinner"></div>
+        <p id="processing-status">処理中...</p>
+      </div>
+    </div>
+
+    <!-- Preview Screen -->
+    <div id="screen-preview" class="screen">
+      <div id="preview-header">
+        <h2>プレビュー</h2>
+        <button id="btn-debug-toggle" class="text-btn">debug</button>
+      </div>
+      <div id="preview-canvases">
+        <div class="preview-item">
+          <canvas id="canvas-original"></canvas>
+          <span>元画像</span>
+        </div>
+        <div class="preview-item">
+          <canvas id="canvas-no-bg"></canvas>
+          <span>背景除去</span>
+        </div>
+        <div class="preview-item">
+          <canvas id="canvas-outline"></canvas>
+          <span>輪郭</span>
+        </div>
+        <div class="preview-item">
+          <canvas id="canvas-particles"></canvas>
+          <span>粒子配置</span>
+        </div>
+      </div>
+      <div id="preview-stats"></div>
+      <div class="btn-row">
+        <button id="btn-launch" class="primary-btn">打ち上げる！</button>
+        <button id="btn-retry" class="secondary-btn">別の絵を選ぶ</button>
+      </div>
+    </div>
+
+    <!-- AR Screen -->
+    <div id="screen-ar" class="screen">
+      <div id="ar-hint">タップで打ち上げ</div>
+      <button id="btn-ar-back" class="icon-btn">✕</button>
+    </div>
+
+  </div>
+
+  <!-- Debug Panel -->
+  <div id="debug-panel">
+    <div id="debug-header">
+      <h3>デバッグ情報</h3>
+      <button id="btn-debug-close">閉じる</button>
+    </div>
+    <div id="debug-content"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
