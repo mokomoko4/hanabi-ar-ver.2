@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>らくがき花火大会 — スクリーン</title>
+<link rel="stylesheet" href="css/screen.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;900&display=swap">
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- 名前表示 -->
+<div id="name-display" style="opacity:0">
+  <div class="label" id="name-text"></div>
+</div>
+
+<!-- 待機画面 -->
+<div id="idle-screen">
+  <h1>🎆 らくがき花火大会</h1>
+  <p>絵を描いて、花火にしよう！</p>
+</div>
+
+<!-- テスト用デバッグパネル (本番では非表示にする) -->
+<div id="debug-panel">
+  <select id="shape-select">
+    <option value="0">ハート</option>
+    <option value="1">星</option>
+    <option value="2">まる</option>
+    <option value="3">れんこん</option>
+    <option value="4">チューリップ</option>
+  </select>
+  <button id="btn-fire-normal">▶ 通常発射</button>
+  <button id="btn-fire-finale">⚡ フィナーレ発射</button>
+  <button id="btn-auto">🔄 自動連続 OFF</button>
+  <button id="btn-brightness">💡 高輝度 OFF</button>
+  <button id="btn-hide-debug">× パネル非表示</button>
+</div>
+
+<div id="status">phase: idle</div>
+<div id="burst-debug" style="
+  position:fixed; top:3rem; left:1rem;
+  font-size:0.85rem; font-family:monospace;
+  color:#0f0; background:rgba(0,0,0,0.6);
+  padding:4px 8px; border-radius:4px;
+  pointer-events:none; z-index:200;
+"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import { FireworksEngine } from './js/fireworks.js';
+import { DEMO_SHAPES } from './js/demoData.js';
+
+const canvas      = document.getElementById('canvas');
+const nameDisplay = document.getElementById('name-display');
+const nameText    = document.getElementById('name-text');
+const idleScreen  = document.getElementById('idle-screen');
+const statusEl    = document.getElementById('status');
+
+const engine = new FireworksEngine(canvas);
+engine._debugEl = document.getElementById('burst-debug');
+
+// ── state ──────────────────────────────────────────────────────────────────
+
+let isPlaying  = false;
+let autoMode   = false;
+let autoIndex  = 0;
+let highBright = false;
+
+function setStatus(s) { statusEl.textContent = `phase: ${s}`; }
+
+// ── nickname display ───────────────────────────────────────────────────────
+
+function showName(nickname, finaleMode = false) {
+  if (finaleMode) {
+    nameDisplay.style.opacity = '0';
+    return;
+  }
+  nameText.textContent = `${nickname}の花火`;
+  nameDisplay.style.opacity = '1';
+}
+
+function hideName() {
+  nameDisplay.style.opacity = '0';
+}
+
+// ── launch ─────────────────────────────────────────────────────────────────
+
+function fire(shapeIndex, mode = 'normal') {
+  if (isPlaying) return;
+  isPlaying = true;
+
+  const shape = DEMO_SHAPES[shapeIndex];
+  idleScreen.style.opacity = '0';
+  idleScreen.style.pointerEvents = 'none';
+
+  showName(shape.nickname, mode === 'finale');
+  setStatus(mode === 'finale' ? `finale — ${shape.label}` : `normal — ${shape.label}`);
+
+  engine.launch(shape.segments, mode);
+  engine.onComplete = () => {
+    isPlaying = false;
+    hideName();
+    setStatus('idle');
+
+    if (autoMode) {
+      autoIndex = (autoIndex + 1) % DEMO_SHAPES.length;
+      const delay = mode === 'finale' ? 400 : 1200;
+      setTimeout(() => fire(autoIndex, mode), delay);
+    } else {
+      setTimeout(() => {
+        idleScreen.style.opacity = '1';
+      }, 800);
+    }
+  };
+}
+
+// ── controls ───────────────────────────────────────────────────────────────
+
+document.getElementById('btn-fire-normal').onclick = () => {
+  const i = parseInt(document.getElementById('shape-select').value, 10);
+  fire(i, 'normal');
+};
+
+document.getElementById('btn-fire-finale').onclick = () => {
+  const i = parseInt(document.getElementById('shape-select').value, 10);
+  fire(i, 'finale');
+};
+
+const btnAuto = document.getElementById('btn-auto');
+btnAuto.onclick = () => {
+  autoMode = !autoMode;
+  btnAuto.textContent = `🔄 自動連続 ${autoMode ? 'ON' : 'OFF'}`;
+  btnAuto.classList.toggle('active', autoMode);
+  if (autoMode && !isPlaying) {
+    fire(autoIndex, 'normal');
+  }
+};
+
+const btnBright = document.getElementById('btn-brightness');
+btnBright.onclick = () => {
+  highBright = !highBright;
+  engine.setBrightness(highBright ? 'high' : 'normal');
+  btnBright.textContent = `💡 高輝度 ${highBright ? 'ON' : 'OFF'}`;
+  btnBright.classList.toggle('active', highBright);
+};
+
+document.getElementById('btn-hide-debug').onclick = () => {
+  document.getElementById('debug-panel').style.display = 'none';
+};
+
+// キーボードショートカット
+document.addEventListener('keydown', e => {
+  if (e.key === ' ')   fire(parseInt(document.getElementById('shape-select').value, 10), 'normal');
+  if (e.key === 'f')   fire(parseInt(document.getElementById('shape-select').value, 10), 'finale');
+  if (e.key === 'a')   btnAuto.click();
+  if (e.key === 'b')   btnBright.click();
+  // 1-5 でシェイプ選択
+  if (e.key >= '1' && e.key <= '5') {
+    document.getElementById('shape-select').value = String(parseInt(e.key) - 1);
+  }
+});
+
+setStatus('idle');
+</script>
+</body>
+</html>
