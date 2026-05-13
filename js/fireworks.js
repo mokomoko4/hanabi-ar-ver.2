@@ -37,6 +37,10 @@ const FRAG = `
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 function lerp(a, b, t)   { return a + (b - a) * t; }
+function smoothstep(e0, e1, x) {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
 
 function samplePathEvenly(pts, n) {
   if (pts.length < 2) return pts.length ? Array(n).fill(pts[0]) : [];
@@ -263,6 +267,7 @@ export class FireworksEngine {
           dirX: dx, dirY: dy,
           vx: dx * speed + (Math.random() - 0.5) * JITTER,
           vy: dy * speed + UPWARD_BIAS + (Math.random() - 0.5) * JITTER,
+          age: 0,
           r: cr / 255, g: cg / 255, b: cb / 255,
           a: 1.0,
           size: baseSize * (0.85 + Math.random() * 0.3),
@@ -337,10 +342,6 @@ export class FireworksEngine {
   }
 
   _updateParticles(dt) {
-    const GRAVITY = 0.0015;
-    const DRAG    = 0.988;
-    const DRIFT   = 0.0003; // ongoing outward push
-
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
 
@@ -354,16 +355,34 @@ export class FireworksEngine {
       }
 
       if (p.kind === 'outline') {
-        // persistent outward drift keeps particles from stalling
-        p.vx += p.dirX * DRIFT;
-        p.vy += p.dirY * DRIFT;
+        p.age += dt;
+        const age = p.age;
 
-        p.vy -= GRAVITY;
-        p.vx *= DRAG;
-        p.vy *= DRAG;
+        // strong drag immediately after burst → particles decelerate fast
+        // then switch to light drag so they drift slowly
+        const drag = age < 0.45 ? 0.955 : 0.988;
 
-        p.x += p.vx;
-        p.y += p.vy;
+        // outward drift: strong at explosion, exponentially fades
+        const drift = 0.0005 * Math.exp(-age * 3.5);
+        p.vx += p.dirX * drift;
+        p.vy += p.dirY * drift;
+
+        // brief upward lift → "ふわっと開く" feeling right after burst
+        p.vy += 0.0010 * Math.exp(-age * 6.0);
+
+        // gravity ramps in gradually (weak at burst, grows over ~1.8s)
+        const gravity = lerp(0.0004, 0.0022, smoothstep(0.25, 1.8, age));
+        p.vy -= gravity;
+
+        p.vx *= drag;
+        p.vy *= drag;
+        p.x  += p.vx;
+        p.y  += p.vy;
+
+        // noise grows over time: shape holds early, breaks up organically later
+        const noiseT = smoothstep(0.4, 2.0, age);
+        p.vx += (Math.random() - 0.5) * 0.0006 * noiseT;
+        p.vy += (Math.random() - 0.5) * 0.0004 * noiseT;
 
         if (p.decayDelay > 0) {
           p.decayDelay -= dt;
