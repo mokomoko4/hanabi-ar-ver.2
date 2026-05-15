@@ -248,20 +248,7 @@ export class FireworksEngine {
       const decay      = mode === 'finale' ? 0.008 : 0.005;
       const decayDelay = mode === 'finale' ? 0.25  : 0.45;
 
-      for (let i = 0; i < sampled.length; i++) {
-        const [nx, ny] = sampled[i];
-
-        // outward curve normal from arc-length neighbors (wrap for closed paths)
-        const prv = sampled[(i + sampled.length - 1) % sampled.length];
-        const nxt = sampled[(i + 1) % sampled.length];
-        let tnx = nxt[0] - prv[0], tny = nxt[1] - prv[1];
-        const tlen = Math.sqrt(tnx*tnx + tny*tny) || 1;
-        tnx /= tlen; tny /= tlen;
-        let cnx = -tny, cny = tnx;
-        // ensure normal points outward from shape center (0.5, 0.5)
-        if (cnx*(nx-0.5) + cny*(ny-0.5) < 0) { cnx=-cnx; cny=-cny; }
-        const wnx = cnx, wny = -cny; // y-flip normalized→world
-
+      for (const [nx, ny] of sampled) {
         // shape point in world space
         const tx = cx + (nx - 0.5) * SCALE * 2;
         const ty = cy - (ny - 0.5) * SCALE * 2;
@@ -270,19 +257,15 @@ export class FireworksEngine {
         const lx  = tx - cx;
         const ly  = ty - cy;
         const len = Math.sqrt(lx * lx + ly * ly) || 1;
-        const rdx = lx / len, rdy = ly / len;
-
-        // 80% radial + 20% outward normal: concave regions (heart notch) spread apart
-        const mx = rdx*0.8 + wnx*0.2, my = rdy*0.8 + wny*0.2;
-        const mlen = Math.sqrt(mx*mx + my*my) || 1;
-        const dx = mx/mlen, dy = my/mlen;
+        const dx  = lx / len;
+        const dy  = ly / len;
 
         // initial velocity: magnitude ∝ distance so all particles arrive together
         const speed = len * SPEED_SCALE;
 
         this._addParticle({
           x: cx, y: cy,
-          dirX: dx, dirY: dy,
+          dirX: dx,  dirY: dy,
           vx: dx * speed + (Math.random() - 0.5) * JITTER,
           vy: dy * speed + UPWARD_BIAS + (Math.random() - 0.5) * JITTER,
           age: 0,
