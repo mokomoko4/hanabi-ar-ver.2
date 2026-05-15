@@ -105,8 +105,19 @@ html, body {
 /* ── status bar ───────────────────────────────────────────────────────────── */
 #status {
   position: fixed;
-  bottom: 1rem; left: 1rem;
+  bottom: 2.3rem; left: 1rem;
   font-size: 0.8rem;
   opacity: 0.4;
   pointer-events: none;
+}
+
+/* ── version label ────────────────────────────────────────────────────────── */
+#version-label {
+  position: fixed;
+  bottom: 1rem; left: 1rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  z-index: 50;
 }

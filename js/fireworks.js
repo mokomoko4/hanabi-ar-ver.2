@@ -36,6 +36,7 @@ const FRAG = `
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeOutExpo(t)  { return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t); }
 function lerp(a, b, t)   { return a + (b - a) * t; }
 function smoothstep(e0, e1, x) {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
@@ -234,10 +235,10 @@ export class FireworksEngine {
     const SCALE    = 3.2;
 
     // speed proportional to distance → all particles arrive at shape at same time
-    // tuned so shape is readable ~0.3s after burst (≈18 frames @ 60fps, drag=0.988)
-    const SPEED_SCALE  = 0.062;
+    // higher SPEED_SCALE = faster "ドンッ" burst opening
+    const SPEED_SCALE  = 0.085;
     const JITTER       = 0.010;
-    const UPWARD_BIAS  = 0.004;
+    const UPWARD_BIAS  = 0.0035;
 
     for (const seg of pathSegments) {
       const n        = Math.max(20, Math.round(N_TOTAL * seg.points.length / Math.max(totalPts, 1)));
@@ -358,20 +359,21 @@ export class FireworksEngine {
         p.age += dt;
         const age = p.age;
 
-        // strong drag immediately after burst → particles decelerate fast
-        // then switch to light drag so they drift slowly
-        const drag = age < 0.45 ? 0.955 : 0.988;
+        // drag: punchy deceleration right after burst, smooth transition to float
+        const earlyDrag = 0.930;
+        const lateDrag  = 0.988;
+        const drag = lerp(earlyDrag, lateDrag, smoothstep(0.30, 0.85, age));
 
-        // outward drift: strong at explosion, exponentially fades
-        const drift = 0.0005 * Math.exp(-age * 3.5);
+        // outward drift: minimal so burst speed does the opening, not drift
+        const drift = 0.00024 * Math.exp(-age * 4.2);
         p.vx += p.dirX * drift;
         p.vy += p.dirY * drift;
 
         // brief upward lift → "ふわっと開く" feeling right after burst
         p.vy += 0.0010 * Math.exp(-age * 6.0);
 
-        // gravity ramps in gradually (weak at burst, grows over ~1.8s)
-        const gravity = lerp(0.0004, 0.0022, smoothstep(0.25, 1.8, age));
+        // gravity delayed: outward speed fades first, then gravity pulls down
+        const gravity = lerp(0.00020, 0.0020, smoothstep(0.40, 1.8, age));
         p.vy -= gravity;
 
         p.vx *= drag;
@@ -419,7 +421,13 @@ export class FireworksEngine {
       write(this.rocket.x, this.rocket.y, 0, 1, 0.95, 0.7, 1, 10);
     }
 
-    for (const p of this.particles) write(p.x, p.y, 0, p.r, p.g, p.b, p.a, p.size);
+    const BURST_DUR = 0.20;
+    for (const p of this.particles) {
+      const sizeScale = (p.kind === 'outline' && p.age < BURST_DUR)
+        ? easeOutExpo(p.age / BURST_DUR)
+        : 1.0;
+      write(p.x, p.y, 0, p.r, p.g, p.b, p.a, p.size * sizeScale);
+    }
 
     this.geo.setDrawRange(0, n);
     this.geo.attributes.position.needsUpdate = true;
