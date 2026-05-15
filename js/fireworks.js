@@ -231,14 +231,8 @@ export class FireworksEngine {
     const { x: cx, y: cy } = this.center;
 
     const totalPts = pathSegments.reduce((s, seg) => s + seg.points.length, 0);
-    // 600 particles keeps spacing ≈ particle diameter → clean line, no overlap blob
     const N_TOTAL  = mode === 'finale' ? 300 : 600;
     const SCALE    = 3.2;
-
-    // higher SPEED_SCALE = faster "ドンッ" burst opening
-    const SPEED_SCALE  = 0.085;
-    const JITTER       = 0.010;
-    const UPWARD_BIAS  = 0.0035;
 
     for (const seg of pathSegments) {
       const n        = Math.max(20, Math.round(N_TOTAL * seg.points.length / Math.max(totalPts, 1)));
@@ -249,25 +243,17 @@ export class FireworksEngine {
       const decayDelay = mode === 'finale' ? 0.25  : 0.45;
 
       for (const [nx, ny] of sampled) {
-        // shape point in world space
         const tx = cx + (nx - 0.5) * SCALE * 2;
         const ty = cy - (ny - 0.5) * SCALE * 2;
-
-        // direction and distance from burst center
         const lx  = tx - cx;
         const ly  = ty - cy;
         const len = Math.sqrt(lx * lx + ly * ly) || 1;
-        const dx  = lx / len;
-        const dy  = ly / len;
-
-        // initial velocity: magnitude ∝ distance so all particles arrive together
-        const speed = len * SPEED_SCALE;
 
         this._addParticle({
           x: cx, y: cy,
-          dirX: dx,  dirY: dy,
-          vx: dx * speed + (Math.random() - 0.5) * JITTER,
-          vy: dy * speed + UPWARD_BIAS + (Math.random() - 0.5) * JITTER,
+          cx0: cx, cy0: cy, tx, ty,
+          dirX: lx / len, dirY: ly / len,
+          vx: 0, vy: 0,
           age: 0,
           r: cr / 255, g: cg / 255, b: cb / 255,
           a: 1.0,
@@ -359,35 +345,40 @@ export class FireworksEngine {
         p.age += dt;
         const age = p.age;
 
-        // drag: punchy early decel → float → late slowdown before fade
-        const drag = Math.min(
-          lerp(0.930, 0.988, smoothstep(0.30, 0.85, age)),  // burst decel
-          lerp(0.988, 0.976, smoothstep(0.60, 1.8,  age))   // late slowdown
-        );
+        const BURST_DUR = 0.45;
 
-        // outward drift: minimal burst-phase push + tiny lingering float
-        const drift = 0.00024 * Math.exp(-age * 4.2);
-        p.vx += p.dirX * (drift + 0.00005);
-        p.vy += p.dirY * drift;
+        if (age <= BURST_DUR) {
+          // direct position lerp: shape always forms correctly regardless of framerate
+          const t = easeOutExpo(age / BURST_DUR);
+          p.x = lerp(p.cx0, p.tx, t);
+          p.y = lerp(p.cy0, p.ty, t);
+          p.vx = 0;
+          p.vy = 0;
+        } else {
+          // post-burst drift + gravity
+          const drag = Math.min(
+            lerp(0.975, 0.988, smoothstep(0.45, 1.0, age)),
+            lerp(0.988, 0.976, smoothstep(0.80, 2.0, age))
+          );
 
-        // brief upward lift → "ふわっと開く" feeling right after burst
-        p.vy += 0.0010 * Math.exp(-age * 6.0);
+          const drift = 0.00020 * Math.exp(-(age - BURST_DUR) * 3.0);
+          p.vx += p.dirX * drift;
+          p.vy += p.dirY * drift;
 
-        // constant gravity: flows down gently, never accelerates
-        p.vy -= 0.00065;
-        if (p.vy < -0.012) p.vy = -0.012;  // cap fall speed
+          p.vy -= 0.00060;
+          if (p.vy < -0.012) p.vy = -0.012;
 
-        p.vx *= drag;
-        p.vy *= drag;
-        p.x  += p.vx;
-        p.y  += p.vy;
+          p.vx *= drag;
+          p.vy *= drag;
+          p.x  += p.vx;
+          p.y  += p.vy;
 
-        // noise grows over time: shape holds early, breaks up organically later
-        const noiseT = smoothstep(0.4, 2.0, age);
-        p.vx += (Math.random() - 0.5) * 0.0006 * noiseT;
-        p.vy += (Math.random() - 0.5) * 0.0004 * noiseT;
+          const noiseT = smoothstep(0.45, 2.0, age);
+          p.vx += (Math.random() - 0.5) * 0.0006 * noiseT;
+          p.vy += (Math.random() - 0.5) * 0.0004 * noiseT;
+        }
 
-        // fade: holds shape early, then accelerates to fade-out (not fall-out)
+        // fade: holds shape early, then accelerates to fade-out
         if (p.decayDelay > 0) {
           p.decayDelay -= dt;
         } else {
@@ -423,7 +414,7 @@ export class FireworksEngine {
       write(this.rocket.x, this.rocket.y, 0, 1, 0.95, 0.7, 1, 10);
     }
 
-    const BURST_DUR = 0.20;
+    const BURST_DUR = 0.45;
     for (const p of this.particles) {
       const sizeScale = (p.kind === 'outline' && p.age < BURST_DUR)
         ? easeOutExpo(p.age / BURST_DUR)
