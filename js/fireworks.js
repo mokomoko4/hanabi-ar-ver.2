@@ -346,28 +346,24 @@ export class FireworksEngine {
         const age = p.age;
 
         const BURST_DUR = 0.55;
-        const DRIFT_INIT = 0.006;
+        const DRIFT_INIT = 0.015;  // outward kick at burst end
 
         if (age <= BURST_DUR) {
-          // direct position lerp: shape always forms correctly regardless of framerate
-          // easeOutCubic gives gentler, more even deceleration than easeOutExpo
           const t = easeOutCubic(age / BURST_DUR);
           p.x = lerp(p.cx0, p.tx, t);
           p.y = lerp(p.cy0, p.ty, t);
-          // pre-load drift velocity in final 30% of burst so physics phase
-          // starts with non-zero velocity → no visible freeze at handoff
-          const handoff = smoothstep(0.70 * BURST_DUR, BURST_DUR, age);
+          const handoff = smoothstep(0.60 * BURST_DUR, BURST_DUR, age);
           p.vx = p.dirX * DRIFT_INIT * handoff;
           p.vy = p.dirY * DRIFT_INIT * handoff;
         } else {
-          // post-burst drift + gravity (starts with pre-loaded outward velocity)
+          // spread outward then fall
           const drag = Math.min(
-            lerp(0.975, 0.990, smoothstep(0.55, 1.2, age)),
-            lerp(0.990, 0.976, smoothstep(0.90, 2.2, age))
+            lerp(0.955, 0.985, smoothstep(0.55, 1.4, age)),
+            lerp(0.985, 0.976, smoothstep(1.00, 2.5, age))
           );
 
-          p.vy -= 0.00060;
-          if (p.vy < -0.012) p.vy = -0.012;
+          p.vy -= 0.0013;
+          if (p.vy < -0.022) p.vy = -0.022;
 
           p.vx *= drag;
           p.vy *= drag;
