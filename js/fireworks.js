@@ -346,17 +346,19 @@ export class FireworksEngine {
         const age = p.age;
 
         const BURST_DUR = 0.55;
-        const DRIFT_INIT = 0.015;  // outward kick at burst end
+        const LERP_END  = BURST_DUR * 0.70;  // lerp for first 70%; shape reaches ~97% of target
 
-        if (age <= BURST_DUR) {
-          const t = easeOutCubic(age / BURST_DUR);
-          p.x = lerp(p.cx0, p.tx, t);
-          p.y = lerp(p.cy0, p.ty, t);
-          const handoff = smoothstep(0.60 * BURST_DUR, BURST_DUR, age);
-          p.vx = p.dirX * DRIFT_INIT * handoff;
-          p.vy = p.dirY * DRIFT_INIT * handoff;
+        if (age <= LERP_END) {
+          // direct lerp: shape always forms correctly
+          const tNorm = age / BURST_DUR;
+          p.x = lerp(p.cx0, p.tx, easeOutCubic(tNorm));
+          p.y = lerp(p.cy0, p.ty, easeOutCubic(tNorm));
+          // continuously track lerp derivative as velocity → seamless handoff to physics
+          const dv = 3 * (1 - tNorm) * (1 - tNorm) * dt / BURST_DUR;
+          p.vx = (p.tx - p.cx0) * dv;
+          p.vy = (p.ty - p.cy0) * dv;
         } else {
-          // spread outward then fall
+          // physics continues from lerp velocity — no freeze
           const drag = Math.min(
             lerp(0.955, 0.985, smoothstep(0.55, 1.4, age)),
             lerp(0.985, 0.976, smoothstep(1.00, 2.5, age))
