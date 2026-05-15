@@ -11,7 +11,7 @@ function norm(pts, flipY = true) {
   ]);
 }
 
-function makeHeart(n = 120) {
+function makeHeart(n = 400) {
   const pts = [];
   for (let i = 0; i <= n; i++) {
     const t = (i / n) * Math.PI * 2;

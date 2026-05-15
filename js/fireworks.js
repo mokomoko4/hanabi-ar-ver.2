@@ -231,10 +231,10 @@ export class FireworksEngine {
     const { x: cx, y: cy } = this.center;
 
     const totalPts = pathSegments.reduce((s, seg) => s + seg.points.length, 0);
-    const N_TOTAL  = mode === 'finale' ? 600 : 1800;
+    // 600 particles keeps spacing ≈ particle diameter → clean line, no overlap blob
+    const N_TOTAL  = mode === 'finale' ? 300 : 600;
     const SCALE    = 3.2;
 
-    // speed proportional to distance → all particles arrive at shape at same time
     // higher SPEED_SCALE = faster "ドンッ" burst opening
     const SPEED_SCALE  = 0.085;
     const JITTER       = 0.010;
@@ -244,11 +244,24 @@ export class FireworksEngine {
       const n        = Math.max(20, Math.round(N_TOTAL * seg.points.length / Math.max(totalPts, 1)));
       const sampled  = samplePathEvenly(seg.points, n);
       const [cr, cg, cb] = seg.color;
-      const baseSize   = mode === 'finale' ? 3.5 : 5.0;
+      const baseSize   = mode === 'finale' ? 3.0 : 3.5;
       const decay      = mode === 'finale' ? 0.008 : 0.005;
       const decayDelay = mode === 'finale' ? 0.25  : 0.45;
 
-      for (const [nx, ny] of sampled) {
+      for (let i = 0; i < sampled.length; i++) {
+        const [nx, ny] = sampled[i];
+
+        // outward curve normal from arc-length neighbors (wrap for closed paths)
+        const prv = sampled[(i + sampled.length - 1) % sampled.length];
+        const nxt = sampled[(i + 1) % sampled.length];
+        let tnx = nxt[0] - prv[0], tny = nxt[1] - prv[1];
+        const tlen = Math.sqrt(tnx*tnx + tny*tny) || 1;
+        tnx /= tlen; tny /= tlen;
+        let cnx = -tny, cny = tnx;
+        // ensure normal points outward from shape center (0.5, 0.5)
+        if (cnx*(nx-0.5) + cny*(ny-0.5) < 0) { cnx=-cnx; cny=-cny; }
+        const wnx = cnx, wny = -cny; // y-flip normalized→world
+
         // shape point in world space
         const tx = cx + (nx - 0.5) * SCALE * 2;
         const ty = cy - (ny - 0.5) * SCALE * 2;
@@ -257,10 +270,14 @@ export class FireworksEngine {
         const lx  = tx - cx;
         const ly  = ty - cy;
         const len = Math.sqrt(lx * lx + ly * ly) || 1;
-        const dx  = lx / len;
-        const dy  = ly / len;
+        const rdx = lx / len, rdy = ly / len;
 
-        // initial velocity: outward in shape direction, magnitude ∝ distance
+        // 80% radial + 20% outward normal: concave regions (heart notch) spread apart
+        const mx = rdx*0.8 + wnx*0.2, my = rdy*0.8 + wny*0.2;
+        const mlen = Math.sqrt(mx*mx + my*my) || 1;
+        const dx = mx/mlen, dy = my/mlen;
+
+        // initial velocity: magnitude ∝ distance so all particles arrive together
         const speed = len * SPEED_SCALE;
 
         this._addParticle({
