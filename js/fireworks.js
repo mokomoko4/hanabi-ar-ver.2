@@ -345,25 +345,26 @@ export class FireworksEngine {
         p.age += dt;
         const age = p.age;
 
-        const BURST_DUR = 0.45;
+        const BURST_DUR = 0.55;
+        const DRIFT_INIT = 0.006;
 
         if (age <= BURST_DUR) {
           // direct position lerp: shape always forms correctly regardless of framerate
-          const t = easeOutExpo(age / BURST_DUR);
+          // easeOutCubic gives gentler, more even deceleration than easeOutExpo
+          const t = easeOutCubic(age / BURST_DUR);
           p.x = lerp(p.cx0, p.tx, t);
           p.y = lerp(p.cy0, p.ty, t);
-          p.vx = 0;
-          p.vy = 0;
+          // pre-load drift velocity in final 30% of burst so physics phase
+          // starts with non-zero velocity → no visible freeze at handoff
+          const handoff = smoothstep(0.70 * BURST_DUR, BURST_DUR, age);
+          p.vx = p.dirX * DRIFT_INIT * handoff;
+          p.vy = p.dirY * DRIFT_INIT * handoff;
         } else {
-          // post-burst drift + gravity
+          // post-burst drift + gravity (starts with pre-loaded outward velocity)
           const drag = Math.min(
-            lerp(0.975, 0.988, smoothstep(0.45, 1.0, age)),
-            lerp(0.988, 0.976, smoothstep(0.80, 2.0, age))
+            lerp(0.975, 0.990, smoothstep(0.55, 1.2, age)),
+            lerp(0.990, 0.976, smoothstep(0.90, 2.2, age))
           );
-
-          const drift = 0.00020 * Math.exp(-(age - BURST_DUR) * 3.0);
-          p.vx += p.dirX * drift;
-          p.vy += p.dirY * drift;
 
           p.vy -= 0.00060;
           if (p.vy < -0.012) p.vy = -0.012;
@@ -373,7 +374,7 @@ export class FireworksEngine {
           p.x  += p.vx;
           p.y  += p.vy;
 
-          const noiseT = smoothstep(0.45, 2.0, age);
+          const noiseT = smoothstep(0.55, 2.2, age);
           p.vx += (Math.random() - 0.5) * 0.0006 * noiseT;
           p.vy += (Math.random() - 0.5) * 0.0004 * noiseT;
         }
@@ -414,10 +415,10 @@ export class FireworksEngine {
       write(this.rocket.x, this.rocket.y, 0, 1, 0.95, 0.7, 1, 10);
     }
 
-    const BURST_DUR = 0.45;
+    const BURST_DUR = 0.55;
     for (const p of this.particles) {
       const sizeScale = (p.kind === 'outline' && p.age < BURST_DUR)
-        ? easeOutExpo(p.age / BURST_DUR)
+        ? easeOutCubic(p.age / BURST_DUR)
         : 1.0;
       write(p.x, p.y, 0, p.r, p.g, p.b, p.a, p.size * sizeScale);
     }
