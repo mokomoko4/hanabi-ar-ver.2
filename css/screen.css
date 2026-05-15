@@ -114,7 +114,7 @@ html, body {
 /* ── version label ────────────────────────────────────────────────────────── */
 #version-label {
   position: fixed;
-  bottom: 1rem; left: 1rem;
+  bottom: 1rem; right: 1rem;
   font-size: 0.8rem;
   font-family: monospace;
   color: rgba(255, 255, 255, 0.65);

@@ -359,22 +359,23 @@ export class FireworksEngine {
         p.age += dt;
         const age = p.age;
 
-        // drag: punchy deceleration right after burst, smooth transition to float
-        const earlyDrag = 0.930;
-        const lateDrag  = 0.988;
-        const drag = lerp(earlyDrag, lateDrag, smoothstep(0.30, 0.85, age));
+        // drag: punchy early decel → float → late slowdown before fade
+        const drag = Math.min(
+          lerp(0.930, 0.988, smoothstep(0.30, 0.85, age)),  // burst decel
+          lerp(0.988, 0.976, smoothstep(0.60, 1.8,  age))   // late slowdown
+        );
 
-        // outward drift: minimal so burst speed does the opening, not drift
+        // outward drift: minimal burst-phase push + tiny lingering float
         const drift = 0.00024 * Math.exp(-age * 4.2);
-        p.vx += p.dirX * drift;
+        p.vx += p.dirX * (drift + 0.00005);
         p.vy += p.dirY * drift;
 
         // brief upward lift → "ふわっと開く" feeling right after burst
         p.vy += 0.0010 * Math.exp(-age * 6.0);
 
-        // gravity delayed: outward speed fades first, then gravity pulls down
-        const gravity = lerp(0.00020, 0.0020, smoothstep(0.40, 1.8, age));
-        p.vy -= gravity;
+        // constant gravity: flows down gently, never accelerates
+        p.vy -= 0.00065;
+        if (p.vy < -0.012) p.vy = -0.012;  // cap fall speed
 
         p.vx *= drag;
         p.vy *= drag;
@@ -386,10 +387,11 @@ export class FireworksEngine {
         p.vx += (Math.random() - 0.5) * 0.0006 * noiseT;
         p.vy += (Math.random() - 0.5) * 0.0004 * noiseT;
 
+        // fade: holds shape early, then accelerates to fade-out (not fall-out)
         if (p.decayDelay > 0) {
           p.decayDelay -= dt;
         } else {
-          p.a -= p.decay;
+          p.a -= lerp(0.004, 0.018, smoothstep(0.8, 2.2, age));
         }
         if (p.a < 0.01) { this.particles.splice(i, 1); }
       }
