@@ -232,7 +232,7 @@ export class FireworksEngine {
 
     const totalPts = pathSegments.reduce((s, seg) => s + seg.points.length, 0);
     const N_TOTAL  = mode === 'finale' ? 300 : 600;
-    const SCALE    = 3.2;
+    const SCALE    = 4.2;
 
     for (const seg of pathSegments) {
       const n        = Math.max(20, Math.round(N_TOTAL * seg.points.length / Math.max(totalPts, 1)));
