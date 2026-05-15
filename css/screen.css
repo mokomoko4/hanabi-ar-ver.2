@@ -115,9 +115,10 @@ html, body {
 #version-label {
   position: fixed;
   bottom: 1rem; left: 1rem;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-family: monospace;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.65);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
   pointer-events: none;
-  z-index: 50;
+  z-index: 9999;
 }
