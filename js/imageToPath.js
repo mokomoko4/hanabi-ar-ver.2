@@ -207,6 +207,28 @@ function normalizeAll(segments) {
 
 // ── mask → PathSegments ───────────────────────────────────────────────────
 
+// Randomly sample interior pixels from largest components for fill layer
+function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints }) {
+  const comps = findComponents(mask, size, size)
+    .filter(c => c.area >= minArea)
+    .sort((a, b) => b.area - a.area)
+    .slice(0, maxN);
+
+  if (comps.length === 0) return [];
+
+  const totalArea = comps.reduce((s, c) => s + c.area, 0);
+  return comps.map(comp => {
+    const n = Math.max(8, Math.round(targetPoints * comp.area / Math.max(totalArea, 1)));
+    const step = comp.pixels.length / n;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const idx = Math.min(Math.floor(i * step + Math.random() * step * 0.9), comp.pixels.length - 1);
+      pts.push(comp.pixels[idx]);
+    }
+    return { points: pts, color: displayColor, isClosed: false, layer };
+  }).filter(s => s.points.length >= 4);
+}
+
 function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints }) {
   const comps = findComponents(mask, size, size)
     .filter(c => c.area >= minArea)
@@ -278,6 +300,18 @@ export async function imageUrlToPathSegments(url, size = 256) {
         targetPoints: grp.layer === 'main' ? 300 : 160,
       });
       segments.push(...segs);
+    }
+    // Body fill: interior sample of yellow components (sits behind main contour)
+    if (groupCounts.yellow >= 60) {
+      const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
+      const fillSegs = maskToFillSegments(masks.yellow, size, {
+        displayColor: yellowGrp.displayColor,
+        layer: 'fill',
+        minArea: 60,
+        maxN: 3,
+        targetPoints: 100,
+      });
+      segments.push(...fillSegs);
     }
   }
 

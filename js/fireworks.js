@@ -38,9 +38,9 @@ const FRAG = `
 `;
 
 const MODE_PRESETS = {
-  normal:           { nTotal: 600, baseSize: 3.5, maxPointSize: 60, glowA: 0.85, glowB: 0.35, coreBoost: 0.25, decay: 0.005, decayDelay: 0.45, rocketTime: 1.1, fallTime: 4.5, accentDelay: 0.70 },
-  finale:           { nTotal: 280, baseSize: 3.0, maxPointSize: 40, glowA: 0.80, glowB: 0.28, coreBoost: 0.18, decay: 0.008, decayDelay: 0.25, rocketTime: 0.7, fallTime: 2.0, accentDelay: 0.50 },
-  'image-readable': { nTotal: 400, baseSize: 2.4, maxPointSize: 38, glowA: 0.75, glowB: 0.18, coreBoost: 0.10, decay: 0.005, decayDelay: 0.40, rocketTime: 1.1, fallTime: 4.5, accentDelay: 0.70 },
+  normal:           { nTotal: 600, baseSize: 3.5, maxPointSize: 60, glowA: 0.85, glowB: 0.35, coreBoost: 0.25, decay: 0.005, decayDelay: 0.45, rocketTime: 1.1, fallTime: 4.5 },
+  finale:           { nTotal: 280, baseSize: 3.0, maxPointSize: 40, glowA: 0.80, glowB: 0.28, coreBoost: 0.18, decay: 0.008, decayDelay: 0.25, rocketTime: 0.7, fallTime: 2.0 },
+  'image-readable': { nTotal: 400, baseSize: 2.4, maxPointSize: 38, glowA: 0.75, glowB: 0.18, coreBoost: 0.10, decay: 0.005, decayDelay: 0.40, rocketTime: 1.1, fallTime: 4.5 },
 };
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
@@ -202,8 +202,6 @@ export class FireworksEngine {
       pathSegments, mode, params,
       phase: 'rocket', phaseT: 0,
       timings: { rocket: preset.rocketTime, fall: preset.fallTime },
-      accentDelay: preset.accentDelay,
-      accentSpawned: false,
     };
     this.center = new THREE.Vector3(0, 0.8, 0);
     this._launchRocket();
@@ -250,7 +248,8 @@ export class FireworksEngine {
     }
   }
 
-  _spawnParticlesFromSegs(segs, params) {
+  // Spawn contour (path) particles — used for main and accent layers
+  _spawnContourSegs(segs, params) {
     const { x: cx, y: cy } = this.center;
     const { nTotal, baseSize, decay, decayDelay } = params;
     const totalPts = segs.reduce((s, seg) => s + seg.points.length, 0);
@@ -276,22 +275,70 @@ export class FireworksEngine {
     }
   }
 
-  _spawnShapeParticles() {
-    const { pathSegments, params } = this.show;
-    const mainSegs = pathSegments.filter(s => s.layer !== 'accent');
-    this._spawnParticlesFromSegs(mainSegs.length > 0 ? mainSegs : pathSegments, params);
+  // Spawn fill particles from scattered interior points — used for fill layer
+  _spawnFillSegs(segs, params) {
+    const { x: cx, y: cy } = this.center;
+    const { nTotal, baseSize, decay, decayDelay } = params;
+    const totalPts = segs.reduce((s, seg) => s + seg.points.length, 0);
+    const SCALE = 4.2;
+
+    for (const seg of segs) {
+      const n = Math.max(8, Math.round(nTotal * seg.points.length / Math.max(totalPts, 1)));
+      const pts = seg.points;
+      const step = Math.max(1, pts.length / n);
+      const [cr, cg, cb] = seg.color;
+      for (let i = 0; i < n; i++) {
+        const [nx, ny] = pts[Math.min(Math.floor(i * step + Math.random() * step * 0.9), pts.length - 1)];
+        const tx = cx + (nx - 0.5) * SCALE * 2;
+        const ty = cy - (ny - 0.5) * SCALE * 2;
+        const lx = tx - cx, ly = ty - cy;
+        const len = Math.sqrt(lx*lx + ly*ly) || 1;
+        this._addParticle({
+          x: cx, y: cy, cx0: cx, cy0: cy, tx, ty,
+          dirX: lx/len, dirY: ly/len, vx: 0, vy: 0, age: 0,
+          r: cr/255, g: cg/255, b: cb/255, a: 0.65,
+          size: baseSize * (0.55 + Math.random() * 0.25),
+          decay: decay * 1.2, decayDelay: decayDelay * 0.65, kind: 'fill',
+        });
+      }
+    }
   }
 
-  _spawnAccentParticles() {
+  // Spawn all layers simultaneously at burst — fill → outline → accent
+  _spawnAllLayers() {
     const { pathSegments, params } = this.show;
+    const mainSegs   = pathSegments.filter(s => s.layer === 'main');
+    const fillSegs   = pathSegments.filter(s => s.layer === 'fill');
     const accentSegs = pathSegments.filter(s => s.layer === 'accent');
-    if (accentSegs.length === 0) return;
-    this._spawnParticlesFromSegs(accentSegs, {
-      ...params,
-      nTotal:     Math.round(params.nTotal * 0.4),
-      baseSize:   params.baseSize * 0.6,
-      decayDelay: params.decayDelay * 0.6,
-    });
+
+    const noLayerInfo = mainSegs.length === 0 && fillSegs.length === 0 && accentSegs.length === 0;
+    if (noLayerInfo) {
+      this._spawnContourSegs(pathSegments, params);
+      return;
+    }
+
+    const contourSegs = mainSegs.length > 0 ? mainSegs
+      : pathSegments.filter(s => s.layer !== 'accent' && s.layer !== 'fill');
+
+    if (fillSegs.length > 0) {
+      this._spawnFillSegs(fillSegs, {
+        ...params,
+        nTotal:     Math.round(params.nTotal * 0.35),
+        baseSize:   params.baseSize * 0.55,
+        decayDelay: params.decayDelay * 0.65,
+      });
+    }
+    if (contourSegs.length > 0) {
+      this._spawnContourSegs(contourSegs, params);
+    }
+    if (accentSegs.length > 0) {
+      this._spawnContourSegs(accentSegs, {
+        ...params,
+        nTotal:     Math.round(params.nTotal * 0.45),
+        baseSize:   params.baseSize * 0.7,
+        decayDelay: params.decayDelay * 0.8,
+      });
+    }
   }
 
   _addParticle(p) { p.vx = p.vx ?? 0; p.vy = p.vy ?? 0; this.particles.push(p); }
@@ -318,15 +365,11 @@ export class FireworksEngine {
         show.phase = 'burst'; show.phaseT = 0;
         if (this._debugEl) this._debugEl.textContent = 'phase=burst';
         this._burstFlash();
-        this._spawnShapeParticles();
+        this._spawnAllLayers();
       }
     } else if (show.phase === 'burst') {
-      if (!show.accentSpawned && show.phaseT >= show.accentDelay) {
-        show.accentSpawned = true;
-        this._spawnAccentParticles();
-      }
       if (this._debugEl) this._debugEl.textContent = `phase=burst  t=${show.phaseT.toFixed(2)}`;
-      const alive = this.particles.some(p => p.kind === 'outline' && p.a > 0.02);
+      const alive = this.particles.some(p => (p.kind === 'outline' || p.kind === 'fill') && p.a > 0.02);
       if (!alive || show.phaseT >= timings.fall) {
         this.show = null; this.particles = [];
         if (this._debugEl) this._debugEl.textContent = 'phase=idle';
@@ -348,7 +391,8 @@ export class FireworksEngine {
         if (p.a < 0.01) this.particles.splice(i, 1);
         continue;
       }
-      if (p.kind === 'outline') {
+      if (p.kind === 'outline' || p.kind === 'fill') {
+        const isFill = p.kind === 'fill';
         p.age += dt;
         const age = p.age;
         const BURST_DUR = 0.55, LERP_END = BURST_DUR * 0.70;
@@ -364,13 +408,13 @@ export class FireworksEngine {
             lerp(0.955, 0.985, smoothstep(0.55, 1.4, age)),
             lerp(0.985, 0.976, smoothstep(1.00, 2.5, age))
           );
-          p.vy -= 0.0013;
+          p.vy -= isFill ? 0.0008 : 0.0013;
           if (p.vy < -0.022) p.vy = -0.022;
           p.vx *= drag; p.vy *= drag;
           p.x += p.vx; p.y += p.vy;
           const noiseT = smoothstep(0.55, 2.2, age);
-          p.vx += (Math.random()-0.5) * 0.0006 * noiseT;
-          p.vy += (Math.random()-0.5) * 0.0004 * noiseT;
+          p.vx += (Math.random()-0.5) * (isFill ? 0.0003 : 0.0006) * noiseT;
+          p.vy += (Math.random()-0.5) * (isFill ? 0.0002 : 0.0004) * noiseT;
         }
         if (p.decayDelay > 0) { p.decayDelay -= dt; }
         else { p.a -= lerp(0.004, 0.018, smoothstep(0.8, 2.2, age)); }
@@ -402,7 +446,7 @@ export class FireworksEngine {
     if (this.show?.phase === 'rocket' && this.rocket) write(this.rocket.x, this.rocket.y, 0, 1, 0.95, 0.7, 1, 10);
     const BURST_DUR = 0.55;
     for (const p of this.particles) {
-      const ss = (p.kind === 'outline' && p.age < BURST_DUR) ? easeOutCubic(p.age / BURST_DUR) : 1.0;
+      const ss = ((p.kind === 'outline' || p.kind === 'fill') && p.age < BURST_DUR) ? easeOutCubic(p.age / BURST_DUR) : 1.0;
       write(p.x, p.y, 0, p.r, p.g, p.b, p.a, p.size * ss);
     }
     this.geo.setDrawRange(0, n);
