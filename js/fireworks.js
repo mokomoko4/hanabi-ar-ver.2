@@ -314,6 +314,7 @@ export class FireworksEngine {
     const fillSegs      = pathSegments.filter(s => s.layer === 'fill');
     const accentSegs    = pathSegments.filter(s => s.layer === 'accent');
     const accentContour = accentSegs.filter(s => s.kind !== 'fill');
+    const accentFill    = accentSegs.filter(s => s.kind === 'fill');
 
     const noLayerInfo = mainSegs.length === 0 && fillSegs.length === 0 && accentSegs.length === 0;
     if (noLayerInfo) {
@@ -346,6 +347,17 @@ export class FireworksEngine {
         nTotal:     Math.round(params.nTotal * 0.40),
         baseSize:   params.baseSize * 0.70,
         decayDelay: params.decayDelay * 0.80,
+      });
+    }
+    // 4. Accent fill — mouth only, minimal particles, full brightness
+    if (accentFill.length > 0) {
+      this._spawnFillSegs(accentFill, {
+        ...params,
+        nTotal:     Math.round(params.nTotal * 0.12),
+        baseSize:   params.baseSize * 0.60,
+        decayDelay: params.decayDelay * 0.75,
+        alphaInit:  0.75,
+        colorScale: 1.0,
       });
     }
   }

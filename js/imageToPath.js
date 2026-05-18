@@ -345,6 +345,48 @@ export async function imageUrlToPathSegments(url, size = 256) {
       });
       segments.push(...fillSegs);
     }
+    // Mouth detection: find mouth component among black features, dilate it, add as accent fill
+    if (groupCounts.black >= 12) {
+      const blackComps = findComponents(masks.black, size, size)
+        .filter(c => c.area >= 10)
+        .sort((a, b) => b.area - a.area)
+        .slice(0, 8);
+
+      if (blackComps.length >= 1) {
+        const compStats = blackComps.map(comp => {
+          let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity, sumY=0;
+          for (const [x, y] of comp.pixels) {
+            if(x<minX)minX=x; if(x>maxX)maxX=x;
+            if(y<minY)minY=y; if(y>maxY)maxY=y;
+            sumY+=y;
+          }
+          return { comp, cy: sumY/comp.pixels.length, bw: maxX-minX+1, bh: maxY-minY+1 };
+        });
+
+        // Top 1-2 by area = eye candidates; get their average Y as reference
+        const eyeCount   = Math.min(2, compStats.length);
+        const eyeRefY    = compStats.slice(0, eyeCount).reduce((s,c) => s+c.cy, 0) / eyeCount;
+        const minMouthY  = eyeRefY + size * 0.05;
+
+        // Mouth: below eyes, wider than tall, not noise
+        const mouth = compStats.slice(eyeCount).find(s =>
+          s.cy > minMouthY && s.bw >= s.bh && s.comp.area >= 12
+        );
+
+        if (mouth) {
+          const mouthMask = new Uint8Array(size * size);
+          for (const [x, y] of mouth.comp.pixels) mouthMask[y * size + x] = 1;
+          const mouthSegs = maskToFillSegments(dilate(mouthMask, size, 2), size, {
+            displayColor: [255, 245, 190],
+            layer: 'accent',
+            minArea: 4,
+            maxN: 1,
+            targetPoints: 40,
+          });
+          segments.push(...mouthSegs);
+        }
+      }
+    }
   }
 
   // Fallback / supplement: use all visible pixels as main if no main segments found
