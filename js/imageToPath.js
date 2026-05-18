@@ -16,7 +16,7 @@ const DY4 = [ 0,  0,  1, -1];
 const COLOR_GROUPS = [
   { name: 'yellow', layer: 'main',   displayColor: [255, 215,  50], minArea: 30, maxN: 6,
     match: (h, s, v) => h >= 38 && h <= 80 && s > 0.28 && v > 0.35 },
-  { name: 'black',  layer: 'accent', displayColor: [200, 225, 255], minArea: 8,  maxN: 8,
+  { name: 'black',  layer: 'accent', displayColor: [255, 245, 200], minArea: 8,  maxN: 8,
     match: (h, s, v) => v < 0.28 },
   { name: 'red',    layer: 'accent', displayColor: [255, 110, 140], minArea: 8,  maxN: 4,
     match: (h, s, v) => (h < 20 || h > 340) && s > 0.35 && v > 0.28 },
@@ -89,6 +89,25 @@ function buildColorMasks(data, size) {
     out.any[i] = 1;
     const cls = classifyPixel(pr, pg, pb);
     if (cls) out[cls][i] = 1;
+  }
+  return out;
+}
+
+// ── morphological dilation ────────────────────────────────────────────────
+
+function dilate(mask, size, r) {
+  const out = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (!mask[y * size + x]) continue;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < size && ny >= 0 && ny < size)
+            out[ny * size + nx] = 1;
+        }
+      }
+    }
   }
   return out;
 }
@@ -225,7 +244,7 @@ function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, ta
       const idx = Math.min(Math.floor(i * step + Math.random() * step * 0.9), comp.pixels.length - 1);
       pts.push(comp.pixels[idx]);
     }
-    return { points: pts, color: displayColor, isClosed: false, layer };
+    return { points: pts, color: displayColor, isClosed: false, layer, kind: 'fill' };
   }).filter(s => s.points.length >= 4);
 }
 
@@ -259,6 +278,7 @@ function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, target
     color:    displayColor,
     isClosed: true,
     layer,
+    kind:     'contour',
   }));
 }
 
@@ -301,17 +321,29 @@ export async function imageUrlToPathSegments(url, size = 256) {
       });
       segments.push(...segs);
     }
-    // Body fill: interior sample of yellow components (sits behind main contour)
-    if (groupCounts.yellow >= 60) {
+    // Body fill: yellow interior points (sits behind main contour, reduces hollow look)
+    if (groupCounts.yellow >= 40) {
       const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
       const fillSegs = maskToFillSegments(masks.yellow, size, {
         displayColor: yellowGrp.displayColor,
         layer: 'fill',
-        minArea: 60,
+        minArea: 40,
         maxN: 3,
-        targetPoints: 100,
+        targetPoints: 200,
       });
       segments.push(...fillSegs);
+    }
+    // Accent fill: dilate black mask by 2px so thin lines (mouth) become thick enough to sample
+    if (groupCounts.black >= 8) {
+      const dilatedBlack = dilate(masks.black, size, 2);
+      const blackFillSegs = maskToFillSegments(dilatedBlack, size, {
+        displayColor: [255, 245, 200],
+        layer: 'accent',
+        minArea: 8,
+        maxN: 8,
+        targetPoints: 120,
+      });
+      segments.push(...blackFillSegs);
     }
   }
 

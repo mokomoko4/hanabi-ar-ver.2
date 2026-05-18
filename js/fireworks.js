@@ -275,10 +275,12 @@ export class FireworksEngine {
     }
   }
 
-  // Spawn fill particles from scattered interior points — used for fill layer
+  // Spawn fill particles from scattered interior points — used for fill and accent-fill layers
   _spawnFillSegs(segs, params) {
     const { x: cx, y: cy } = this.center;
     const { nTotal, baseSize, decay, decayDelay } = params;
+    const alphaInit  = params.alphaInit  ?? 0.70;
+    const colorScale = params.colorScale ?? 0.82;
     const totalPts = segs.reduce((s, seg) => s + seg.points.length, 0);
     const SCALE = 4.2;
 
@@ -296,20 +298,23 @@ export class FireworksEngine {
         this._addParticle({
           x: cx, y: cy, cx0: cx, cy0: cy, tx, ty,
           dirX: lx/len, dirY: ly/len, vx: 0, vy: 0, age: 0,
-          r: cr/255, g: cg/255, b: cb/255, a: 0.65,
-          size: baseSize * (0.55 + Math.random() * 0.25),
+          r: cr/255 * colorScale, g: cg/255 * colorScale, b: cb/255 * colorScale,
+          a: alphaInit,
+          size: baseSize * (0.75 + Math.random() * 0.15),
           decay: decay * 1.2, decayDelay: decayDelay * 0.65, kind: 'fill',
         });
       }
     }
   }
 
-  // Spawn all layers simultaneously at burst — fill → outline → accent
+  // Spawn all layers simultaneously at burst — fill → main → accent contour → accent fill
   _spawnAllLayers() {
     const { pathSegments, params } = this.show;
-    const mainSegs   = pathSegments.filter(s => s.layer === 'main');
-    const fillSegs   = pathSegments.filter(s => s.layer === 'fill');
-    const accentSegs = pathSegments.filter(s => s.layer === 'accent');
+    const mainSegs     = pathSegments.filter(s => s.layer === 'main');
+    const fillSegs     = pathSegments.filter(s => s.layer === 'fill');
+    const accentSegs   = pathSegments.filter(s => s.layer === 'accent');
+    const accentContour = accentSegs.filter(s => s.kind !== 'fill');
+    const accentFill    = accentSegs.filter(s => s.kind === 'fill');
 
     const noLayerInfo = mainSegs.length === 0 && fillSegs.length === 0 && accentSegs.length === 0;
     if (noLayerInfo) {
@@ -320,23 +325,39 @@ export class FireworksEngine {
     const contourSegs = mainSegs.length > 0 ? mainSegs
       : pathSegments.filter(s => s.layer !== 'accent' && s.layer !== 'fill');
 
+    // 1. Body fill — dim, small, sits behind everything
     if (fillSegs.length > 0) {
       this._spawnFillSegs(fillSegs, {
         ...params,
-        nTotal:     Math.round(params.nTotal * 0.35),
-        baseSize:   params.baseSize * 0.55,
+        nTotal:     Math.round(params.nTotal * 0.45),
+        baseSize:   params.baseSize * 0.80,
         decayDelay: params.decayDelay * 0.65,
+        alphaInit:  0.68,
+        colorScale: 0.80,
       });
     }
+    // 2. Main contour — primary silhouette
     if (contourSegs.length > 0) {
       this._spawnContourSegs(contourSegs, params);
     }
-    if (accentSegs.length > 0) {
-      this._spawnContourSegs(accentSegs, {
+    // 3. Accent contour — cheeks, tail stripes (outlines)
+    if (accentContour.length > 0) {
+      this._spawnContourSegs(accentContour, {
         ...params,
-        nTotal:     Math.round(params.nTotal * 0.45),
-        baseSize:   params.baseSize * 0.7,
-        decayDelay: params.decayDelay * 0.8,
+        nTotal:     Math.round(params.nTotal * 0.40),
+        baseSize:   params.baseSize * 0.70,
+        decayDelay: params.decayDelay * 0.80,
+      });
+    }
+    // 4. Accent fill — dilated mouth/eyes, full brightness for face readability
+    if (accentFill.length > 0) {
+      this._spawnFillSegs(accentFill, {
+        ...params,
+        nTotal:     Math.round(params.nTotal * 0.22),
+        baseSize:   params.baseSize * 0.65,
+        decayDelay: params.decayDelay * 0.70,
+        alphaInit:  0.85,
+        colorScale: 1.0,
       });
     }
   }
