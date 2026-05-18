@@ -33,7 +33,7 @@ function loadImage(url) {
 
 function removeWhiteBackground(data) {
   for (let i = 0; i < data.length; i += 4) {
-    if (data[i] >= 245 && data[i+1] >= 245 && data[i+2] >= 245) data[i+3] = 0;
+    if (data[i] >= 230 && data[i+1] >= 230 && data[i+2] >= 230) data[i+3] = 0;
   }
 }
 
@@ -115,7 +115,7 @@ function traceOuterContour(mask, width, height, startX, startY) {
   // (or the virtual entry background pixel).  For the start we entered from W.
   let backDir = 4; // West
 
-  const MAX = Math.min(width * height, 30000);
+  const MAX = width * height; // safe upper bound: contour can't exceed total pixel count
   let steps = 0;
 
   do {
@@ -228,7 +228,7 @@ export async function imageUrlToPathSegments(url, size = 256) {
   const allComponents = findComponents(mask, size, size);
 
   // Filter noise; keep up to 8 largest
-  const MIN_AREA = 50;
+  const MIN_AREA = 20;
   const validComps = allComponents
     .filter(c => c.area >= MIN_AREA)
     .sort((a, b) => b.area - a.area)
