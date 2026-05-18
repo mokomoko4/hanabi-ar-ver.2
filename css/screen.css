@@ -75,32 +75,77 @@ html, body {
   top: 1rem; right: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
   z-index: 100;
+  width: 252px;
+  background: rgba(0,0,0,0.80);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 0.5rem;
+  backdrop-filter: blur(6px);
 }
 
 #debug-panel button {
-  padding: 0.5rem 1rem;
+  padding: 0.42rem 0.6rem;
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.3);
   color: #fff;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
-  backdrop-filter: blur(4px);
+  font-size: 0.82rem;
   transition: background 0.15s;
+  font-family: inherit;
 }
-#debug-panel button:hover { background: rgba(255,255,255,0.25); }
-#debug-panel button.active { background: rgba(255, 200, 50, 0.35); border-color: #ffd700; }
+#debug-panel button:hover  { background: rgba(255,255,255,0.25); }
+#debug-panel button.active { background: rgba(255,200,50,0.35); border-color: #ffd700; }
 
 #debug-panel select {
-  padding: 0.4rem 0.6rem;
+  padding: 0.35rem 0.5rem;
   background: rgba(0,0,0,0.5);
   border: 1px solid rgba(255,255,255,0.3);
   color: #fff;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-family: inherit;
 }
+
+/* ── tabs ── */
+.tab-bar { display:flex; gap:2px; }
+.tab-btn { flex:1; min-width:0; padding:0.28rem 0.1rem !important; font-size:0.70rem !important; }
+.tab-panel { display:none; flex-direction:column; gap:0.35rem; }
+.tab-panel.active { display:flex; }
+
+/* ── layout helpers ── */
+.btn-row { display:flex; gap:4px; }
+.btn-row button { flex:1; }
+
+/* ── sliders ── */
+.slider-row { display:flex; align-items:center; gap:5px; font-size:0.76rem; }
+.slider-label { min-width:56px; color:rgba(255,255,255,0.65); flex-shrink:0; }
+.slider-row input[type=range] { flex:1; min-width:0; height:14px; cursor:pointer; }
+.slider-val { min-width:2.8rem; text-align:right; font-family:monospace; font-size:0.73rem; color:#ffd700; }
+
+/* ── Firebase list ── */
+#fb-list {
+  max-height:120px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:2px;
+}
+.fb-item { text-align:left; font-size:0.77rem; padding:0.22rem 0.5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fb-item.selected { background:rgba(255,200,50,0.35) !important; border-color:#ffd700 !important; }
+
+#fb-status-text { font-size:0.73rem; color:#ffa; min-height:1.1em; word-break:break-all; }
+#url-status-text { font-size:0.73rem; color:#aff; min-height:1.1em; word-break:break-all; }
+
+/* ── URL input ── */
+#url-input {
+  width:100%; padding:0.3rem 0.5rem;
+  background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.3);
+  color:#fff; border-radius:6px; font-size:0.78rem;
+  outline:none; font-family:inherit;
+}
+#url-input:focus { border-color:rgba(255,200,50,0.7); }
+
+.panel-divider { border:none; border-top:1px solid rgba(255,255,255,0.15); margin:2px 0; }
 
 /* ── status bar ───────────────────────────────────────────────────────────── */
 #status {

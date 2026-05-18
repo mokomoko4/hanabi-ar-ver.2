@@ -12,46 +12,107 @@
 
 <canvas id="canvas"></canvas>
 
-<!-- 名前表示 -->
 <div id="name-display" style="opacity:0">
   <div class="label" id="name-text"></div>
 </div>
 
-<!-- 待機画面 -->
 <div id="idle-screen">
   <h1>🎆 らくがき花火大会</h1>
   <p>絵を描いて、花火にしよう！</p>
 </div>
 
-<!-- テスト用デバッグパネル (本番では非表示にする) -->
+<!-- デバッグパネル -->
 <div id="debug-panel">
-  <select id="shape-select">
-    <option value="0">ハート</option>
-    <option value="1">星</option>
-    <option value="2">まる</option>
-    <option value="3">れんこん</option>
-    <option value="4">チューリップ</option>
-  </select>
-  <button id="btn-fire-normal">▶ 通常発射</button>
-  <button id="btn-fire-finale">⚡ フィナーレ発射</button>
-  <button id="btn-auto">🔄 自動連続 OFF</button>
-  <button id="btn-brightness">💡 高輝度 OFF</button>
-  <hr style="border-color:rgba(255,255,255,0.2);margin:2px 0">
-  <button id="btn-firebase">🔥 Firebase再生 OFF</button>
+  <!-- タブバー -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="demo">デモ</button>
+    <button class="tab-btn" data-tab="firebase">Firebase</button>
+    <button class="tab-btn" data-tab="url">URL</button>
+    <button class="tab-btn" data-tab="settings">設定</button>
+  </div>
+
+  <!-- デモ花火タブ -->
+  <div id="tab-demo" class="tab-panel active">
+    <select id="shape-select">
+      <option value="0">❤ ハート</option>
+      <option value="1">⭐ 星</option>
+      <option value="2">● まる</option>
+      <option value="3">✿ れんこん</option>
+      <option value="4">🌷 チューリップ</option>
+    </select>
+    <div class="btn-row">
+      <button id="btn-fire-normal">▶ 通常</button>
+      <button id="btn-fire-finale">⚡ フィナーレ</button>
+    </div>
+    <button id="btn-auto">🔄 自動連続 OFF</button>
+  </div>
+
+  <!-- Firebase作品タブ -->
+  <div id="tab-firebase" class="tab-panel">
+    <div id="fb-status-text">— 未取得 —</div>
+    <div id="fb-list"></div>
+    <select id="fb-mode-select">
+      <option value="normal">通常モード</option>
+      <option value="image-readable" selected>読みやすく</option>
+    </select>
+    <div class="btn-row">
+      <button id="btn-fb-fire">▶ 選択して発射</button>
+      <button id="btn-fb-auto">▶ 自動再生 OFF</button>
+    </div>
+    <button id="btn-fb-refresh">🔄 最新再取得</button>
+  </div>
+
+  <!-- URL画像タブ -->
+  <div id="tab-url" class="tab-panel">
+    <input type="url" id="url-input" placeholder="画像URLを入力...">
+    <button id="btn-url-load">📥 読み込み</button>
+    <div id="url-status-text">—</div>
+    <select id="url-mode-select">
+      <option value="normal">通常モード</option>
+      <option value="image-readable" selected>読みやすく</option>
+    </select>
+    <button id="btn-url-fire" disabled>▶ 発射</button>
+  </div>
+
+  <!-- 表示設定タブ -->
+  <div id="tab-settings" class="tab-panel">
+    <div class="slider-row">
+      <span class="slider-label">粒子サイズ</span>
+      <input type="range" id="sl-size" min="0.5" max="2.5" step="0.1" value="1.0">
+      <span class="slider-val" id="sl-size-val">1.0×</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Glow</span>
+      <input type="range" id="sl-glow" min="0.0" max="2.0" step="0.05" value="1.0">
+      <span class="slider-val" id="sl-glow-val">1.0×</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">輝度</span>
+      <input type="range" id="sl-bright" min="0.3" max="2.5" step="0.1" value="1.0">
+      <span class="slider-val" id="sl-bright-val">1.0</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">粒子数×</span>
+      <input type="range" id="sl-count" min="0.3" max="2.0" step="0.1" value="1.0">
+      <span class="slider-val" id="sl-count-val">1.0×</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">最大点px</span>
+      <input type="range" id="sl-maxpt" min="0" max="100" step="2" value="0">
+      <span class="slider-val" id="sl-maxpt-val">AUTO</span>
+    </div>
+    <div class="btn-row">
+      <button id="btn-stars">⭐ 背景星 ON</button>
+      <button id="btn-brightness">💡 高輝度 OFF</button>
+    </div>
+  </div>
+
+  <hr class="panel-divider">
   <button id="btn-hide-debug">× パネル非表示</button>
 </div>
 
-<div id="firebase-status" style="
-  display:none;
-  position:fixed; bottom:4rem; left:1rem;
-  font-size:0.8rem; font-family:monospace;
-  color:#ffa; background:rgba(0,0,0,0.7);
-  padding:4px 8px; border-radius:4px;
-  pointer-events:none; z-index:200;
-"></div>
-
 <div id="status">phase: idle</div>
-<div id="version-label">ver0.07</div>
+<div id="version-label">ver0.08</div>
 <div id="burst-debug" style="
   position:fixed; top:3rem; left:1rem;
   font-size:0.85rem; font-family:monospace;
@@ -69,240 +130,289 @@
 </script>
 
 <script type="module">
-import { FireworksEngine } from './js/fireworks.js';
-import { DEMO_SHAPES } from './js/demoData.js';
-import { fetchWorks } from './js/firebase.js';
+import { FireworksEngine }       from './js/fireworks.js';
+import { DEMO_SHAPES }           from './js/demoData.js';
+import { fetchWorks }            from './js/firebase.js';
 import { imageUrlToPathSegments } from './js/imageToPath.js';
 
-const canvas        = document.getElementById('canvas');
-const nameDisplay   = document.getElementById('name-display');
-const nameText      = document.getElementById('name-text');
-const idleScreen    = document.getElementById('idle-screen');
-const idleText      = idleScreen.querySelector('p');
-const statusEl      = document.getElementById('status');
-const fbStatusEl    = document.getElementById('firebase-status');
+const canvas      = document.getElementById('canvas');
+const nameDisplay = document.getElementById('name-display');
+const nameText    = document.getElementById('name-text');
+const idleScreen  = document.getElementById('idle-screen');
+const statusEl    = document.getElementById('status');
 
 const engine = new FireworksEngine(canvas);
 engine._debugEl = document.getElementById('burst-debug');
 
-// ── state ──────────────────────────────────────────────────────────────────
+// ── shared helpers ──────────────────────────────────────────────────────────
 
-let isPlaying  = false;
-let autoMode   = false;
-let autoIndex  = 0;
-let highBright = false;
-
-// Firebase mode state
-let fbMode    = false;
-let fbWorks   = [];
-let fbIndex   = 0;
-let fbRunning = false;
+let isPlaying = false;
 
 function setStatus(s) { statusEl.textContent = `phase: ${s}`; }
-function setFbStatus(s) { fbStatusEl.textContent = s; }
 
-// ── nickname display ───────────────────────────────────────────────────────
-
-function showName(nickname, finaleMode = false) {
-  if (finaleMode) {
-    nameDisplay.style.opacity = '0';
-    return;
-  }
-  nameText.textContent = `${nickname}の花火`;
+function showName(text) {
+  if (!text) { nameDisplay.style.opacity = '0'; return; }
+  nameText.textContent = text;
   nameDisplay.style.opacity = '1';
 }
+function hideName() { nameDisplay.style.opacity = '0'; }
 
-function hideName() {
-  nameDisplay.style.opacity = '0';
-}
+function hideIdle()  { idleScreen.style.opacity = '0'; idleScreen.style.pointerEvents = 'none'; }
+function showIdle()  { idleScreen.style.opacity = '1'; idleScreen.style.pointerEvents = ''; }
 
-// ── launch ─────────────────────────────────────────────────────────────────
-
-function fire(shapeIndex, mode = 'normal') {
-  if (isPlaying) return;
+// Start a firework. Returns false if already playing.
+function startFire(pathSegments, mode, label, afterCb) {
+  if (isPlaying) return false;
   isPlaying = true;
-
-  const shape = DEMO_SHAPES[shapeIndex];
-  idleScreen.style.opacity = '0';
-  idleScreen.style.pointerEvents = 'none';
-
-  showName(shape.nickname, mode === 'finale');
-  setStatus(mode === 'finale' ? `finale — ${shape.label}` : `normal — ${shape.label}`);
-
-  engine.launch(shape.segments, mode);
+  hideIdle();
+  showName(label);
+  setStatus(`${mode} — ${label || '?'}`);
+  engine.launch(pathSegments, mode);
   engine.onComplete = () => {
     isPlaying = false;
     hideName();
     setStatus('idle');
-
-    if (autoMode) {
-      autoIndex = (autoIndex + 1) % DEMO_SHAPES.length;
-      const delay = mode === 'finale' ? 400 : 1200;
-      setTimeout(() => fire(autoIndex, mode), delay);
-    } else {
-      setTimeout(() => {
-        idleScreen.style.opacity = '1';
-      }, 800);
-    }
+    afterCb?.();
   };
+  return true;
 }
 
-// ── controls ───────────────────────────────────────────────────────────────
+// ── tab switching ───────────────────────────────────────────────────────────
 
-document.getElementById('btn-fire-normal').onclick = () => {
-  const i = parseInt(document.getElementById('shape-select').value, 10);
-  fire(i, 'normal');
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ── デモ花火タブ ────────────────────────────────────────────────────────────
+
+let demoAutoMode  = false;
+let demoAutoIndex = 0;
+let demoAutoFireMode = 'normal';
+
+function fireDemoShape(index, mode) {
+  demoAutoFireMode = mode;
+  const shape = DEMO_SHAPES[index];
+  const label = mode === 'finale' ? '' : `${shape.nickname}の花火`;
+  startFire(shape.segments, mode, label, () => {
+    if (demoAutoMode) {
+      demoAutoIndex = (demoAutoIndex + 1) % DEMO_SHAPES.length;
+      setTimeout(() => fireDemoShape(demoAutoIndex, mode), mode === 'finale' ? 400 : 1200);
+    } else {
+      setTimeout(showIdle, 800);
+    }
+  });
+}
+
+document.getElementById('btn-fire-normal').onclick = () =>
+  fireDemoShape(parseInt(document.getElementById('shape-select').value, 10), 'normal');
+
+document.getElementById('btn-fire-finale').onclick = () =>
+  fireDemoShape(parseInt(document.getElementById('shape-select').value, 10), 'finale');
+
+const btnDemoAuto = document.getElementById('btn-auto');
+btnDemoAuto.onclick = () => {
+  demoAutoMode = !demoAutoMode;
+  btnDemoAuto.textContent = `🔄 自動連続 ${demoAutoMode ? 'ON' : 'OFF'}`;
+  btnDemoAuto.classList.toggle('active', demoAutoMode);
+  if (demoAutoMode && !isPlaying) fireDemoShape(demoAutoIndex, 'normal');
 };
 
-document.getElementById('btn-fire-finale').onclick = () => {
-  const i = parseInt(document.getElementById('shape-select').value, 10);
-  fire(i, 'finale');
-};
+// ── Firebase作品タブ ────────────────────────────────────────────────────────
 
-const btnAuto = document.getElementById('btn-auto');
-btnAuto.onclick = () => {
-  autoMode = !autoMode;
-  btnAuto.textContent = `🔄 自動連続 ${autoMode ? 'ON' : 'OFF'}`;
-  btnAuto.classList.toggle('active', autoMode);
-  if (autoMode && !isPlaying) {
-    fire(autoIndex, 'normal');
+let fbWorks        = [];
+let fbSelectedIdx  = -1;
+let fbAutoOn       = false;
+
+const fbStatusText = document.getElementById('fb-status-text');
+const fbListEl     = document.getElementById('fb-list');
+const fbModeSelect = document.getElementById('fb-mode-select');
+const btnFbAuto    = document.getElementById('btn-fb-auto');
+
+function renderFbList() {
+  fbListEl.innerHTML = '';
+  if (fbWorks.length === 0) {
+    fbListEl.innerHTML = '<span style="font-size:0.74rem;opacity:0.5;padding:2px 4px">作品なし</span>';
+    return;
+  }
+  fbWorks.forEach((w, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'fb-item' + (i === fbSelectedIdx ? ' selected' : '');
+    btn.textContent = w.name ? `${w.name}` : `作品 ${i + 1}`;
+    btn.onclick = () => { fbSelectedIdx = i; renderFbList(); fireWork(w, fbModeSelect.value); };
+    fbListEl.appendChild(btn);
+  });
+}
+
+async function loadFbWorks() {
+  fbStatusText.textContent = '📡 取得中...';
+  try {
+    fbWorks = await fetchWorks(20);
+    if (fbSelectedIdx < 0 && fbWorks.length > 0) fbSelectedIdx = 0;
+    fbStatusText.textContent = `✅ ${fbWorks.length}件`;
+    renderFbList();
+  } catch (err) {
+    fbStatusText.textContent = `❌ ${err.message}`;
+  }
+}
+
+function fireWork(work, mode) {
+  (async () => {
+    if (isPlaying) return;
+    fbStatusText.textContent = `⏳ 処理中: ${work.name || work.id}`;
+    let segs;
+    try {
+      segs = await imageUrlToPathSegments(work.url);
+    } catch (err) {
+      console.warn('[fb] skip:', work.id, err.message);
+      fbStatusText.textContent = `⚠ スキップ: ${err.message}`;
+      if (fbAutoOn) setTimeout(fbAutoNext, 600);
+      return;
+    }
+    const label = work.name ? `${work.name}の花火` : '花火';
+    fbStatusText.textContent = `🎆 ${label}`;
+    startFire(segs, mode, label, () => {
+      fbStatusText.textContent = `✅ ${fbWorks.length}件`;
+      if (fbAutoOn) setTimeout(fbAutoNext, 2000);
+      else          setTimeout(showIdle, 800);
+    });
+  })();
+}
+
+function fbAutoNext() {
+  if (!fbAutoOn || fbWorks.length === 0) return;
+  fbSelectedIdx = (fbSelectedIdx + 1) % fbWorks.length;
+  renderFbList();
+  fireWork(fbWorks[fbSelectedIdx], fbModeSelect.value);
+}
+
+btnFbAuto.onclick = () => {
+  fbAutoOn = !fbAutoOn;
+  btnFbAuto.textContent = `▶ 自動再生 ${fbAutoOn ? 'ON' : 'OFF'}`;
+  btnFbAuto.classList.toggle('active', fbAutoOn);
+  if (fbAutoOn) {
+    if (fbWorks.length === 0) loadFbWorks().then(() => { if (!isPlaying) fbAutoNext(); });
+    else if (!isPlaying) fbAutoNext();
   }
 };
 
-const btnBright = document.getElementById('btn-brightness');
-btnBright.onclick = () => {
+document.getElementById('btn-fb-fire').onclick = async () => {
+  if (fbWorks.length === 0) { await loadFbWorks(); }
+  if (fbSelectedIdx >= 0 && fbWorks.length > 0) fireWork(fbWorks[fbSelectedIdx], fbModeSelect.value);
+};
+
+document.getElementById('btn-fb-refresh').onclick = () => loadFbWorks();
+
+// Firebaseタブを初めて開いたとき自動取得
+document.querySelector('[data-tab="firebase"]').addEventListener('click', () => {
+  if (fbWorks.length === 0) loadFbWorks();
+}, { once: true });
+
+// ── URL画像タブ ─────────────────────────────────────────────────────────────
+
+let urlSegs = null;
+const urlStatusText  = document.getElementById('url-status-text');
+const btnUrlFire     = document.getElementById('btn-url-fire');
+const urlModeSelect  = document.getElementById('url-mode-select');
+
+document.getElementById('btn-url-load').onclick = async () => {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+  urlStatusText.textContent = '⏳ 読み込み中...';
+  btnUrlFire.disabled = true;
+  urlSegs = null;
+  try {
+    urlSegs = await imageUrlToPathSegments(url);
+    const n = urlSegs.reduce((s, sg) => s + sg.points.length, 0);
+    urlStatusText.textContent = `✅ ${n}点取得`;
+    btnUrlFire.disabled = false;
+  } catch (err) {
+    urlStatusText.textContent = `❌ ${err.message}`;
+  }
+};
+
+btnUrlFire.onclick = () => {
+  if (!urlSegs) return;
+  startFire(urlSegs, urlModeSelect.value, 'URL画像の花火', () => setTimeout(showIdle, 800));
+};
+
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-url-load').click();
+});
+
+// ── 表示設定タブ ─────────────────────────────────────────────────────────────
+
+function bindSlider(id, valId, suffix, fn) {
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = fn ? fn(v) : (v.toFixed(1) + suffix);
+    engine.setDisplayOverrides({ [id.replace('sl-', '').replace('-', 'TotalMult').replace('size', 'sizeScale').replace('glow', 'glowMult').replace('bright', 'brightness').replace('count', 'nTotalMult')]: v });
+  });
+}
+
+// Manual bindings to keep override keys explicit
+document.getElementById('sl-size').addEventListener('input', function() {
+  document.getElementById('sl-size-val').textContent = parseFloat(this.value).toFixed(1) + '×';
+  engine.setDisplayOverrides({ sizeScale: parseFloat(this.value) });
+});
+document.getElementById('sl-glow').addEventListener('input', function() {
+  document.getElementById('sl-glow-val').textContent = parseFloat(this.value).toFixed(2) + '×';
+  engine.setDisplayOverrides({ glowMult: parseFloat(this.value) });
+});
+document.getElementById('sl-bright').addEventListener('input', function() {
+  document.getElementById('sl-bright-val').textContent = parseFloat(this.value).toFixed(1);
+  engine.setDisplayOverrides({ brightness: parseFloat(this.value) });
+});
+document.getElementById('sl-count').addEventListener('input', function() {
+  document.getElementById('sl-count-val').textContent = parseFloat(this.value).toFixed(1) + '×';
+  engine.setDisplayOverrides({ nTotalMult: parseFloat(this.value) });
+});
+document.getElementById('sl-maxpt').addEventListener('input', function() {
+  const v = parseInt(this.value, 10);
+  document.getElementById('sl-maxpt-val').textContent = v === 0 ? 'AUTO' : String(v);
+  engine.setDisplayOverrides({ maxPointSize: v === 0 ? null : v });
+});
+
+let starsVisible = true;
+const btnStars = document.getElementById('btn-stars');
+btnStars.onclick = () => {
+  starsVisible = !starsVisible;
+  engine.setStarVisible(starsVisible);
+  btnStars.textContent = `⭐ 背景星 ${starsVisible ? 'ON' : 'OFF'}`;
+  btnStars.classList.toggle('active', !starsVisible);
+};
+
+let highBright = false;
+const btnBrightness = document.getElementById('btn-brightness');
+btnBrightness.onclick = () => {
   highBright = !highBright;
   engine.setBrightness(highBright ? 'high' : 'normal');
-  btnBright.textContent = `💡 高輝度 ${highBright ? 'ON' : 'OFF'}`;
-  btnBright.classList.toggle('active', highBright);
+  btnBrightness.textContent = `💡 高輝度 ${highBright ? 'ON' : 'OFF'}`;
+  btnBrightness.classList.toggle('active', highBright);
 };
+
+// ── キーボードショートカット ─────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ')   { e.preventDefault(); fireDemoShape(parseInt(document.getElementById('shape-select').value, 10), 'normal'); }
+  if (e.key === 'f')   fireDemoShape(parseInt(document.getElementById('shape-select').value, 10), 'finale');
+  if (e.key === 'a')   btnDemoAuto.click();
+  if (e.key === 'b')   btnBrightness.click();
+  if (e.key >= '1' && e.key <= '5') document.getElementById('shape-select').value = String(parseInt(e.key) - 1);
+});
+
+// ── panel hide ───────────────────────────────────────────────────────────────
 
 document.getElementById('btn-hide-debug').onclick = () => {
   document.getElementById('debug-panel').style.display = 'none';
 };
-
-// ── Firebase mode ───────────────────────────────────────────────────────────
-
-const btnFirebase = document.getElementById('btn-firebase');
-
-btnFirebase.onclick = () => {
-  fbMode = !fbMode;
-  btnFirebase.textContent = `🔥 Firebase再生 ${fbMode ? 'ON' : 'OFF'}`;
-  btnFirebase.classList.toggle('active', fbMode);
-  fbStatusEl.style.display = fbMode ? 'block' : 'none';
-
-  if (fbMode) {
-    // Stop demo auto mode
-    if (autoMode) { autoMode = false; btnAuto.textContent = '🔄 自動連続 OFF'; btnAuto.classList.remove('active'); }
-    startFirebaseMode();
-  } else {
-    stopFirebaseMode();
-  }
-};
-
-async function startFirebaseMode() {
-  fbRunning = true;
-  setFbStatus('📡 Firebase接続中...');
-  idleText.textContent = '📡 Firebase から作品を読み込んでいます...';
-
-  try {
-    fbWorks = await fetchWorks(20);
-    fbIndex = 0;
-    console.log('[firebase] loaded works:', fbWorks.length, fbWorks.map(w => ({ id: w.id, name: w.name, url: w.url?.slice(0, 60) })));
-
-    if (fbWorks.length === 0) {
-      setFbStatus('⏳ 作品なし — 10秒後に再試行');
-      idleText.textContent = '作品がありません。しばらくお待ちください...';
-      setTimeout(() => { if (fbRunning) startFirebaseMode(); }, 10000);
-      return;
-    }
-
-    setFbStatus(`✅ ${fbWorks.length}件取得`);
-    runFirebaseLoop();
-  } catch (err) {
-    console.error('[firebase] fetch failed:', err);
-    setFbStatus(`❌ 接続エラー: ${err.message}`);
-    idleText.textContent = '❌ Firebase接続に失敗しました';
-  }
-}
-
-function stopFirebaseMode() {
-  fbRunning = false;
-  fbStatusEl.style.display = 'none';
-  idleText.textContent = '絵を描いて、花火にしよう！';
-  setStatus('idle');
-  if (!isPlaying) {
-    idleScreen.style.opacity = '1';
-    idleScreen.style.pointerEvents = '';
-  }
-}
-
-async function runFirebaseLoop() {
-  if (!fbRunning) return;
-  if (isPlaying) { setTimeout(runFirebaseLoop, 500); return; }
-  if (fbWorks.length === 0) { setTimeout(() => { if (fbRunning) startFirebaseMode(); }, 3000); return; }
-
-  const work = fbWorks[fbIndex];
-  fbIndex = (fbIndex + 1) % fbWorks.length;
-
-  // Refresh work list after each full cycle
-  if (fbIndex === 0) {
-    fetchWorks(20)
-      .then(w => { fbWorks = w; setFbStatus(`✅ ${w.length}件 (更新済み)`); })
-      .catch(() => {});
-  }
-
-  setStatus('firebase — 処理中...');
-
-  let pathSegments;
-  try {
-    pathSegments = await imageUrlToPathSegments(work.url);
-    const particleCount = pathSegments.reduce((s, seg) => s + seg.points.length, 0);
-    console.log({ artworkId: work.id, nickname: work.name, imageUrl: work.url, pathCount: pathSegments.length, particleCount });
-  } catch (err) {
-    console.warn('[firebase] skip work:', work.id, work.url?.slice(0, 80), err.message);
-    setFbStatus(`⚠ スキップ: ${work.name || work.id} — ${err.message}`);
-    setTimeout(runFirebaseLoop, 300);
-    return;
-  }
-
-  if (!fbRunning) return;
-
-  isPlaying = true;
-  idleScreen.style.opacity = '0';
-  idleScreen.style.pointerEvents = 'none';
-
-  const nickname = work.name || 'らくがき';
-  showName(nickname, false);
-  setStatus(`firebase — ${nickname}`);
-  setFbStatus(`🎆 ${nickname}の花火`);
-
-  engine.launch(pathSegments, 'normal');
-  engine.onComplete = () => {
-    isPlaying = false;
-    hideName();
-
-    if (fbRunning) {
-      setStatus('idle');
-      setTimeout(runFirebaseLoop, 2000);
-    } else {
-      setStatus('idle');
-      setTimeout(() => { idleScreen.style.opacity = '1'; idleScreen.style.pointerEvents = ''; }, 800);
-    }
-  };
-}
-
-// キーボードショートカット
-document.addEventListener('keydown', e => {
-  if (e.key === ' ')   fire(parseInt(document.getElementById('shape-select').value, 10), 'normal');
-  if (e.key === 'f')   fire(parseInt(document.getElementById('shape-select').value, 10), 'finale');
-  if (e.key === 'a')   btnAuto.click();
-  if (e.key === 'b')   btnBright.click();
-  // 1-5 でシェイプ選択
-  if (e.key >= '1' && e.key <= '5') {
-    document.getElementById('shape-select').value = String(parseInt(e.key) - 1);
-  }
-});
 
 setStatus('idle');
 </script>
