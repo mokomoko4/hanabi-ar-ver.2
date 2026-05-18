@@ -36,8 +36,19 @@
   <button id="btn-fire-finale">⚡ フィナーレ発射</button>
   <button id="btn-auto">🔄 自動連続 OFF</button>
   <button id="btn-brightness">💡 高輝度 OFF</button>
+  <hr style="border-color:rgba(255,255,255,0.2);margin:2px 0">
+  <button id="btn-firebase">🔥 Firebase再生 OFF</button>
   <button id="btn-hide-debug">× パネル非表示</button>
 </div>
+
+<div id="firebase-status" style="
+  display:none;
+  position:fixed; bottom:4rem; left:1rem;
+  font-size:0.8rem; font-family:monospace;
+  color:#ffa; background:rgba(0,0,0,0.7);
+  padding:4px 8px; border-radius:4px;
+  pointer-events:none; z-index:200;
+"></div>
 
 <div id="status">phase: idle</div>
 <div id="version-label">ver0.06</div>
@@ -60,12 +71,16 @@
 <script type="module">
 import { FireworksEngine } from './js/fireworks.js';
 import { DEMO_SHAPES } from './js/demoData.js';
+import { fetchWorks } from './js/firebase.js';
+import { imageUrlToPathSegments } from './js/imageToPath.js';
 
-const canvas      = document.getElementById('canvas');
-const nameDisplay = document.getElementById('name-display');
-const nameText    = document.getElementById('name-text');
-const idleScreen  = document.getElementById('idle-screen');
-const statusEl    = document.getElementById('status');
+const canvas        = document.getElementById('canvas');
+const nameDisplay   = document.getElementById('name-display');
+const nameText      = document.getElementById('name-text');
+const idleScreen    = document.getElementById('idle-screen');
+const idleText      = idleScreen.querySelector('p');
+const statusEl      = document.getElementById('status');
+const fbStatusEl    = document.getElementById('firebase-status');
 
 const engine = new FireworksEngine(canvas);
 engine._debugEl = document.getElementById('burst-debug');
@@ -77,7 +92,14 @@ let autoMode   = false;
 let autoIndex  = 0;
 let highBright = false;
 
+// Firebase mode state
+let fbMode    = false;
+let fbWorks   = [];
+let fbIndex   = 0;
+let fbRunning = false;
+
 function setStatus(s) { statusEl.textContent = `phase: ${s}`; }
+function setFbStatus(s) { fbStatusEl.textContent = s; }
 
 // ── nickname display ───────────────────────────────────────────────────────
 
@@ -158,6 +180,117 @@ btnBright.onclick = () => {
 document.getElementById('btn-hide-debug').onclick = () => {
   document.getElementById('debug-panel').style.display = 'none';
 };
+
+// ── Firebase mode ───────────────────────────────────────────────────────────
+
+const btnFirebase = document.getElementById('btn-firebase');
+
+btnFirebase.onclick = () => {
+  fbMode = !fbMode;
+  btnFirebase.textContent = `🔥 Firebase再生 ${fbMode ? 'ON' : 'OFF'}`;
+  btnFirebase.classList.toggle('active', fbMode);
+  fbStatusEl.style.display = fbMode ? 'block' : 'none';
+
+  if (fbMode) {
+    // Stop demo auto mode
+    if (autoMode) { autoMode = false; btnAuto.textContent = '🔄 自動連続 OFF'; btnAuto.classList.remove('active'); }
+    startFirebaseMode();
+  } else {
+    stopFirebaseMode();
+  }
+};
+
+async function startFirebaseMode() {
+  fbRunning = true;
+  setFbStatus('📡 Firebase接続中...');
+  idleText.textContent = '📡 Firebase から作品を読み込んでいます...';
+
+  try {
+    fbWorks = await fetchWorks(20);
+    fbIndex = 0;
+    console.log('[firebase] loaded works:', fbWorks.length, fbWorks.map(w => ({ id: w.id, name: w.name, url: w.url?.slice(0, 60) })));
+
+    if (fbWorks.length === 0) {
+      setFbStatus('⏳ 作品なし — 10秒後に再試行');
+      idleText.textContent = '作品がありません。しばらくお待ちください...';
+      setTimeout(() => { if (fbRunning) startFirebaseMode(); }, 10000);
+      return;
+    }
+
+    setFbStatus(`✅ ${fbWorks.length}件取得`);
+    runFirebaseLoop();
+  } catch (err) {
+    console.error('[firebase] fetch failed:', err);
+    setFbStatus(`❌ 接続エラー: ${err.message}`);
+    idleText.textContent = '❌ Firebase接続に失敗しました';
+  }
+}
+
+function stopFirebaseMode() {
+  fbRunning = false;
+  fbStatusEl.style.display = 'none';
+  idleText.textContent = '絵を描いて、花火にしよう！';
+  setStatus('idle');
+  if (!isPlaying) {
+    idleScreen.style.opacity = '1';
+    idleScreen.style.pointerEvents = '';
+  }
+}
+
+async function runFirebaseLoop() {
+  if (!fbRunning) return;
+  if (isPlaying) { setTimeout(runFirebaseLoop, 500); return; }
+  if (fbWorks.length === 0) { setTimeout(() => { if (fbRunning) startFirebaseMode(); }, 3000); return; }
+
+  const work = fbWorks[fbIndex];
+  fbIndex = (fbIndex + 1) % fbWorks.length;
+
+  // Refresh work list after each full cycle
+  if (fbIndex === 0) {
+    fetchWorks(20)
+      .then(w => { fbWorks = w; setFbStatus(`✅ ${w.length}件 (更新済み)`); })
+      .catch(() => {});
+  }
+
+  setStatus('firebase — 処理中...');
+
+  let pathSegments;
+  try {
+    pathSegments = await imageUrlToPathSegments(work.url);
+    const particleCount = pathSegments.reduce((s, seg) => s + seg.points.length, 0);
+    console.log({ artworkId: work.id, nickname: work.name, imageUrl: work.url, pathCount: pathSegments.length, particleCount });
+  } catch (err) {
+    console.warn('[firebase] skip work:', work.id, work.url?.slice(0, 80), err.message);
+    setFbStatus(`⚠ スキップ: ${work.name || work.id} — ${err.message}`);
+    setTimeout(runFirebaseLoop, 300);
+    return;
+  }
+
+  if (!fbRunning) return;
+
+  isPlaying = true;
+  idleScreen.style.opacity = '0';
+  idleScreen.style.pointerEvents = 'none';
+
+  const nickname = work.name || 'らくがき';
+  showName(nickname, false);
+  setStatus(`firebase — ${nickname}`);
+  setFbStatus(`🎆 ${nickname}の花火`);
+
+  engine.launch(pathSegments, 'normal');
+  engine.onComplete = () => {
+    isPlaying = false;
+    hideName();
+
+    if (fbRunning) {
+      setStatus('idle');
+      setTimeout(runFirebaseLoop, 2000);
+    } else {
+      setStatus('idle');
+      setTimeout(() => { idleScreen.style.opacity = '1'; idleScreen.style.pointerEvents = ''; }, 800);
+    }
+  };
+}
 
 // キーボードショートカット
 document.addEventListener('keydown', e => {
