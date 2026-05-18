@@ -317,19 +317,21 @@ export async function imageUrlToPathSegments(url, size = 256) {
   const segments = [];
 
   if (useColorMode) {
-    // Colored image: extract each color group separately
+    // Contour extraction per color group.
+    // Red uses a dilated mask to merge nearby cheek fragments before contouring.
     for (const grp of COLOR_GROUPS) {
       if (groupCounts[grp.name] < grp.minArea) continue;
-      const segs = maskToSegments(masks[grp.name], size, {
+      const mask = grp.name === 'red' ? dilate(masks.red, size, 5) : masks[grp.name];
+      const segs = maskToSegments(mask, size, {
         ...grp,
         targetPoints: grp.layer === 'main' ? 300 : 160,
       });
       segments.push(...segs);
     }
+
     // Body fill: very sparse yellow interior, excluded near face features
     if (groupCounts.yellow >= 60) {
       const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
-      // Exclusion zone: keep fill away from accent features (eyes, mouth, cheeks, stripes)
       const accentBase = new Uint8Array(size * size);
       for (let i = 0; i < size * size; i++) {
         if (masks.black[i] || masks.red[i] || masks.orange[i]) accentBase[i] = 1;
@@ -345,43 +347,100 @@ export async function imageUrlToPathSegments(url, size = 256) {
       });
       segments.push(...fillSegs);
     }
-    // Mouth detection: find mouth component among black features, dilate it, add as accent fill
-    if (groupCounts.black >= 12) {
+
+    // Yellow inner accents: small yellow components near the main body (hands, etc.)
+    {
+      const yellowComps = findComponents(masks.yellow, size, size)
+        .filter(c => c.area >= 15)
+        .sort((a, b) => b.area - a.area);
+
+      if (yellowComps.length > 1) {
+        const mainComp = yellowComps[0];
+        let mnX=Infinity, mxX=-Infinity, mnY=Infinity, mxY=-Infinity;
+        for (const [x, y] of mainComp.pixels) {
+          if(x<mnX)mnX=x; if(x>mxX)mxX=x;
+          if(y<mnY)mnY=y; if(y>mxY)mxY=y;
+        }
+        const pad = size * 0.07;
+        const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
+
+        for (const comp of yellowComps.slice(1, 5)) {
+          let cx2=0, cy2=0;
+          for (const [x, y] of comp.pixels) { cx2+=x; cy2+=y; }
+          cx2 /= comp.pixels.length; cy2 /= comp.pixels.length;
+          if (cx2 < mnX-pad || cx2 > mxX+pad || cy2 < mnY-pad || cy2 > mxY+pad) continue;
+
+          // Trace this component's own isolated mask so contour stays local
+          let sx=Infinity, sy=Infinity;
+          for (const [x, y] of comp.pixels) { if(y<sy||(y===sy&&x<sx)){sx=x;sy=y;} }
+          const isoMask = new Uint8Array(size * size);
+          for (const [x, y] of comp.pixels) isoMask[y*size+x] = 1;
+          const contour = traceOuterContour(isoMask, size, size, sx, sy);
+          if (contour.length < 3) continue;
+          segments.push({
+            points:   resampleEvenly(contour, Math.max(15, Math.min(60, contour.length))),
+            color:    yellowGrp.displayColor,
+            isClosed: true, layer: 'accent', kind: 'contour',
+          });
+        }
+      }
+    }
+
+    // Mouth detection: improved eye identification + full component log
+    if (groupCounts.black >= 8) {
       const blackComps = findComponents(masks.black, size, size)
-        .filter(c => c.area >= 10)
+        .filter(c => c.area >= 6)
         .sort((a, b) => b.area - a.area)
-        .slice(0, 8);
+        .slice(0, 10);
 
-      if (blackComps.length >= 1) {
-        const compStats = blackComps.map(comp => {
-          let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity, sumY=0;
-          for (const [x, y] of comp.pixels) {
-            if(x<minX)minX=x; if(x>maxX)maxX=x;
-            if(y<minY)minY=y; if(y>maxY)maxY=y;
-            sumY+=y;
-          }
-          return { comp, cy: sumY/comp.pixels.length, bw: maxX-minX+1, bh: maxY-minY+1 };
-        });
+      const compStats = blackComps.map(comp => {
+        let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity, sumX=0, sumY=0;
+        for (const [x, y] of comp.pixels) {
+          if(x<minX)minX=x; if(x>maxX)maxX=x;
+          if(y<minY)minY=y; if(y>maxY)maxY=y;
+          sumX+=x; sumY+=y;
+        }
+        return { comp, cx: sumX/comp.pixels.length, cy: sumY/comp.pixels.length,
+                 bw: maxX-minX+1, bh: maxY-minY+1 };
+      });
 
-        // Top 1-2 by area = eye candidates; get their average Y as reference
-        const eyeCount   = Math.min(2, compStats.length);
-        const eyeRefY    = compStats.slice(0, eyeCount).reduce((s,c) => s+c.cy, 0) / eyeCount;
-        const minMouthY  = eyeRefY + size * 0.05;
+      console.log('[imageToPath] black components', compStats.map((s, i) => ({
+        rank: i, area: s.comp.area,
+        cx: Math.round(s.cx), cy: Math.round(s.cy),
+        bw: s.bw, bh: s.bh,
+        aspect: (s.bw / Math.max(1, s.bh)).toFixed(2),
+      })));
 
-        // Mouth: below eyes, wider than tall, not noise
-        const mouth = compStats.slice(eyeCount).find(s =>
-          s.cy > minMouthY && s.bw >= s.bh && s.comp.area >= 12
+      if (compStats.length >= 1) {
+        const totalBlack = compStats.reduce((s, c) => s + c.comp.area, 0);
+        // Eye candidates: not a huge body-outline, in upper 65% of image
+        const eyeCandidates = compStats
+          .filter(s => s.comp.area < totalBlack * 0.30 && s.cy < size * 0.65)
+          .sort((a, b) => b.comp.area - a.comp.area)
+          .slice(0, 2);
+
+        const eyeRefY = eyeCandidates.length > 0
+          ? eyeCandidates.reduce((s, c) => s + c.cy, 0) / eyeCandidates.length
+          : size * 0.35;
+        const minMouthY = eyeRefY + size * 0.04;
+
+        const eyeSet = new Set(eyeCandidates.map(e => e.comp));
+        const mouth  = compStats.find(s =>
+          !eyeSet.has(s.comp) && s.cy > minMouthY && s.bw >= s.bh * 0.75 && s.comp.area >= 8
         );
+
+        console.log('[imageToPath] mouth', {
+          eyeRefY: Math.round(eyeRefY), minMouthY: Math.round(minMouthY),
+          eyes: eyeCandidates.map(e => ({ cy: Math.round(e.cy), area: e.comp.area })),
+          found: !!mouth, mouthArea: mouth?.comp.area, mouthCy: mouth ? Math.round(mouth.cy) : null,
+        });
 
         if (mouth) {
           const mouthMask = new Uint8Array(size * size);
           for (const [x, y] of mouth.comp.pixels) mouthMask[y * size + x] = 1;
           const mouthSegs = maskToFillSegments(dilate(mouthMask, size, 2), size, {
             displayColor: [255, 245, 190],
-            layer: 'accent',
-            minArea: 4,
-            maxN: 1,
-            targetPoints: 40,
+            layer: 'accent', minArea: 4, maxN: 1, targetPoints: 40,
           });
           segments.push(...mouthSegs);
         }
