@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-import { getDatabase, ref, query, orderByChild, limitToLast, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 const firebaseConfig = {
@@ -21,11 +21,11 @@ signInAnonymously(auth)
   .catch(err => console.error('[firebase] auth error:', err));
 
 export async function fetchWorks(n = 20) {
-  const q = query(ref(db, 'works'), orderByChild('createdAt'), limitToLast(n));
-  const snap = await get(q);
+  const snap = await get(ref(db, 'works'));
   const data = snap.val() || {};
   return Object.entries(data)
     .map(([id, v]) => ({ id, ...v }))
     .filter(w => w.url && w.visible !== false)
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+    .slice(-n);
 }
