@@ -226,8 +226,9 @@ function normalizeAll(segments) {
 
 // ── mask → PathSegments ───────────────────────────────────────────────────
 
-// Randomly sample interior pixels from largest components for fill layer
-function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints }) {
+// Randomly sample interior pixels from largest components for fill layer.
+// excludeMask: optional Uint8Array — pixels set to 1 are skipped (face-exclusion zone).
+function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints, excludeMask = null }) {
   const comps = findComponents(mask, size, size)
     .filter(c => c.area >= minArea)
     .sort((a, b) => b.area - a.area)
@@ -237,15 +238,19 @@ function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, ta
 
   const totalArea = comps.reduce((s, c) => s + c.area, 0);
   return comps.map(comp => {
-    const n = Math.max(8, Math.round(targetPoints * comp.area / Math.max(totalArea, 1)));
-    const step = comp.pixels.length / n;
+    const validPx = excludeMask
+      ? comp.pixels.filter(([x, y]) => !excludeMask[y * size + x])
+      : comp.pixels;
+    if (validPx.length < 4) return null;
+    const n = Math.max(4, Math.round(targetPoints * comp.area / Math.max(totalArea, 1)));
+    const step = validPx.length / n;
     const pts = [];
     for (let i = 0; i < n; i++) {
-      const idx = Math.min(Math.floor(i * step + Math.random() * step * 0.9), comp.pixels.length - 1);
-      pts.push(comp.pixels[idx]);
+      const idx = Math.min(Math.floor(i * step + Math.random() * step * 0.9), validPx.length - 1);
+      pts.push(validPx[idx]);
     }
     return { points: pts, color: displayColor, isClosed: false, layer, kind: 'fill' };
-  }).filter(s => s.points.length >= 4);
+  }).filter(s => s && s.points.length >= 4);
 }
 
 function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints }) {
@@ -321,29 +326,24 @@ export async function imageUrlToPathSegments(url, size = 256) {
       });
       segments.push(...segs);
     }
-    // Body fill: yellow interior points (sits behind main contour, reduces hollow look)
-    if (groupCounts.yellow >= 40) {
+    // Body fill: very sparse yellow interior, excluded near face features
+    if (groupCounts.yellow >= 60) {
       const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
+      // Exclusion zone: keep fill away from accent features (eyes, mouth, cheeks, stripes)
+      const accentBase = new Uint8Array(size * size);
+      for (let i = 0; i < size * size; i++) {
+        if (masks.black[i] || masks.red[i] || masks.orange[i]) accentBase[i] = 1;
+      }
+      const exclusionZone = dilate(accentBase, size, 10);
       const fillSegs = maskToFillSegments(masks.yellow, size, {
         displayColor: yellowGrp.displayColor,
         layer: 'fill',
-        minArea: 40,
+        minArea: 60,
         maxN: 3,
-        targetPoints: 200,
+        targetPoints: 55,
+        excludeMask: exclusionZone,
       });
       segments.push(...fillSegs);
-    }
-    // Accent fill: dilate black mask by 2px so thin lines (mouth) become thick enough to sample
-    if (groupCounts.black >= 8) {
-      const dilatedBlack = dilate(masks.black, size, 2);
-      const blackFillSegs = maskToFillSegments(dilatedBlack, size, {
-        displayColor: [255, 245, 200],
-        layer: 'accent',
-        minArea: 8,
-        maxN: 8,
-        targetPoints: 120,
-      });
-      segments.push(...blackFillSegs);
     }
   }
 

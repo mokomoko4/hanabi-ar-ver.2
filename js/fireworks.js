@@ -307,14 +307,13 @@ export class FireworksEngine {
     }
   }
 
-  // Spawn all layers simultaneously at burst — fill → main → accent contour → accent fill
+  // Spawn all layers simultaneously at burst — fill → main → accent
   _spawnAllLayers() {
     const { pathSegments, params } = this.show;
-    const mainSegs     = pathSegments.filter(s => s.layer === 'main');
-    const fillSegs     = pathSegments.filter(s => s.layer === 'fill');
-    const accentSegs   = pathSegments.filter(s => s.layer === 'accent');
+    const mainSegs      = pathSegments.filter(s => s.layer === 'main');
+    const fillSegs      = pathSegments.filter(s => s.layer === 'fill');
+    const accentSegs    = pathSegments.filter(s => s.layer === 'accent');
     const accentContour = accentSegs.filter(s => s.kind !== 'fill');
-    const accentFill    = accentSegs.filter(s => s.kind === 'fill');
 
     const noLayerInfo = mainSegs.length === 0 && fillSegs.length === 0 && accentSegs.length === 0;
     if (noLayerInfo) {
@@ -325,39 +324,28 @@ export class FireworksEngine {
     const contourSegs = mainSegs.length > 0 ? mainSegs
       : pathSegments.filter(s => s.layer !== 'accent' && s.layer !== 'fill');
 
-    // 1. Body fill — dim, small, sits behind everything
+    // 1. Body fill — very sparse/dim, excluded near face features
     if (fillSegs.length > 0) {
       this._spawnFillSegs(fillSegs, {
         ...params,
-        nTotal:     Math.round(params.nTotal * 0.45),
-        baseSize:   params.baseSize * 0.80,
+        nTotal:     Math.round(params.nTotal * 0.18),
+        baseSize:   params.baseSize * 0.50,
         decayDelay: params.decayDelay * 0.65,
-        alphaInit:  0.68,
-        colorScale: 0.80,
+        alphaInit:  0.30,
+        colorScale: 0.55,
       });
     }
     // 2. Main contour — primary silhouette
     if (contourSegs.length > 0) {
       this._spawnContourSegs(contourSegs, params);
     }
-    // 3. Accent contour — cheeks, tail stripes (outlines)
+    // 3. Accent contour — eyes, cheeks, tail stripes, mouth outline
     if (accentContour.length > 0) {
       this._spawnContourSegs(accentContour, {
         ...params,
         nTotal:     Math.round(params.nTotal * 0.40),
         baseSize:   params.baseSize * 0.70,
         decayDelay: params.decayDelay * 0.80,
-      });
-    }
-    // 4. Accent fill — dilated mouth/eyes, full brightness for face readability
-    if (accentFill.length > 0) {
-      this._spawnFillSegs(accentFill, {
-        ...params,
-        nTotal:     Math.round(params.nTotal * 0.22),
-        baseSize:   params.baseSize * 0.65,
-        decayDelay: params.decayDelay * 0.70,
-        alphaInit:  0.85,
-        colorScale: 1.0,
       });
     }
   }
