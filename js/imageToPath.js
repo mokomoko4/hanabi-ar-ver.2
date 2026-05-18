@@ -76,8 +76,8 @@ function subsample(pts, n) {
   return Array.from({ length: n }, (_, i) => pts[Math.floor(i * step)]);
 }
 
-// Normalize points to [0,1] with aspect ratio preserved and Y flipped
-// (canvas y=0 is top; fireworks engine y=1 is top)
+// Normalize points to [0,1] with aspect ratio preserved
+// Engine (fireworks.js) already flips Y via cy-(ny-0.5), so no flip here
 function normalizePoints(pts) {
   if (pts.length === 0) return pts;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -92,7 +92,7 @@ function normalizePoints(pts) {
   const padY = (range - rangeY) / 2;
   return pts.map(([x, y]) => [
     (x - minX + padX) / range,
-    1 - (y - minY + padY) / range,   // flip Y
+    (y - minY + padY) / range,
   ]);
 }
 
