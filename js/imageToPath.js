@@ -1,8 +1,8 @@
-// imageToPath.js — color-aware contour extraction for character fireworks
+// imageToPath.js - color-aware contour extraction for character fireworks
 //
 // Output:
-//   layer:'main'   — primary silhouette (yellow/large components)
-//   layer:'accent' — face parts, markings (black/red/orange small components)
+//   layer:'main'   - primary silhouette (yellow/large components)
+//   layer:'accent' - face parts, markings (black/red/orange small components)
 //
 // For non-colorful images, falls back to size-based main/accent split.
 
@@ -224,10 +224,10 @@ function normalizeAll(segments) {
   }));
 }
 
-// ── mask → PathSegments ───────────────────────────────────────────────────
+// mask -> PathSegments
 
 // Randomly sample interior pixels from largest components for fill layer.
-// excludeMask: optional Uint8Array — pixels set to 1 are skipped (face-exclusion zone).
+// excludeMask: optional Uint8Array; pixels set to 1 are skipped.
 function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints, excludeMask = null }) {
   const comps = findComponents(mask, size, size)
     .filter(c => c.area >= minArea)
@@ -253,7 +253,7 @@ function maskToFillSegments(mask, size, { minArea, maxN, displayColor, layer, ta
   }).filter(s => s && s.points.length >= 4);
 }
 
-function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints }) {
+function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, targetPoints, kind = 'contour' }) {
   const comps = findComponents(mask, size, size)
     .filter(c => c.area >= minArea)
     .sort((a, b) => b.area - a.area)
@@ -283,8 +283,278 @@ function maskToSegments(mask, size, { minArea, maxN, displayColor, layer, target
     color:    displayColor,
     isClosed: true,
     layer,
-    kind:     'contour',
+    kind,
   }));
+}
+
+function componentStats(comp) {
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity, sumX=0, sumY=0;
+  for (const [x, y] of comp.pixels) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    sumX += x; sumY += y;
+  }
+  const area = comp.pixels.length;
+  return {
+    comp,
+    pixels: comp.pixels,
+    area,
+    minX, maxX, minY, maxY,
+    w: maxX - minX + 1,
+    h: maxY - minY + 1,
+    cx: area ? sumX / area : 0,
+    cy: area ? sumY / area : 0,
+  };
+}
+
+function expandedBBox(stat, pad, size) {
+  return {
+    minX: Math.max(0, stat.minX - pad),
+    maxX: Math.min(size - 1, stat.maxX + pad),
+    minY: Math.max(0, stat.minY - pad),
+    maxY: Math.min(size - 1, stat.maxY + pad),
+  };
+}
+
+function isInsideOrNear(stat, bbox) {
+  return stat.cx >= bbox.minX && stat.cx <= bbox.maxX &&
+         stat.cy >= bbox.minY && stat.cy <= bbox.maxY;
+}
+
+function componentToContourSegment(stat, size, { color, layer, kind, minPoints = 15, maxPoints = 300 }) {
+  let sx=Infinity, sy=Infinity;
+  const isoMask = new Uint8Array(size * size);
+  for (const [x, y] of stat.pixels) {
+    isoMask[y * size + x] = 1;
+    if (y < sy || (y === sy && x < sx)) { sx = x; sy = y; }
+  }
+  const contour = traceOuterContour(isoMask, size, size, sx, sy);
+  if (contour.length < 3) return null;
+  return {
+    points: resampleEvenly(contour, Math.max(minPoints, Math.min(maxPoints, contour.length))),
+    color,
+    isClosed: true,
+    layer,
+    kind,
+  };
+}
+
+function componentToBlobSegment(stat, color, { radius = null, pointCount = 14, kind = 'cheek' } = {}) {
+  const blobR = radius ?? Math.max(3, Math.min(8, Math.sqrt(stat.area / Math.PI) * 1.6));
+  const pts = [];
+  for (let i = 0; i < pointCount; i++) {
+    const a = Math.PI * 2 * i / pointCount;
+    const wobble = 0.78 + (((i * 37) % 11) / 10) * 0.18;
+    pts.push([stat.cx + Math.cos(a) * blobR * wobble, stat.cy + Math.sin(a) * blobR * wobble]);
+  }
+  return { points: pts, color, isClosed: true, layer: 'accent', kind };
+}
+
+function componentToStrokeSegment(stat, color, { kind = 'mouth', maxPoints = 48 } = {}) {
+  const pts = [...stat.pixels].sort((a, b) => {
+    if (stat.w >= stat.h) return a[0] === b[0] ? a[1] - b[1] : a[0] - b[0];
+    return a[1] === b[1] ? a[0] - b[0] : a[1] - b[1];
+  });
+  if (pts.length < 2) return null;
+  return {
+    points: resampleEvenly(pts, Math.max(8, Math.min(maxPoints, pts.length))),
+    color,
+    isClosed: false,
+    layer: 'accent',
+    kind,
+  };
+}
+
+function mergeNearbyComponents(stats, size, { maxDistance = null } = {}) {
+  const threshold = maxDistance ?? Math.max(7, size * 0.045);
+  const groups = [];
+
+  for (const stat of stats) {
+    let target = null;
+    for (const group of groups) {
+      const dx = stat.cx - group.cx;
+      const dy = stat.cy - group.cy;
+      const gapX = Math.max(0, Math.max(group.minX - stat.maxX, stat.minX - group.maxX));
+      const gapY = Math.max(0, Math.max(group.minY - stat.maxY, stat.minY - group.maxY));
+      if (Math.sqrt(dx*dx + dy*dy) <= threshold || (gapX <= threshold && gapY <= threshold)) {
+        target = group;
+        break;
+      }
+    }
+    if (!target) {
+      groups.push({
+        pixels: [...stat.pixels],
+        area: stat.area,
+        minX: stat.minX, maxX: stat.maxX, minY: stat.minY, maxY: stat.maxY,
+        cx: stat.cx, cy: stat.cy,
+      });
+      continue;
+    }
+    target.pixels.push(...stat.pixels);
+    target.area += stat.area;
+    target.minX = Math.min(target.minX, stat.minX); target.maxX = Math.max(target.maxX, stat.maxX);
+    target.minY = Math.min(target.minY, stat.minY); target.maxY = Math.max(target.maxY, stat.maxY);
+    let sumX = 0, sumY = 0;
+    for (const [x, y] of target.pixels) { sumX += x; sumY += y; }
+    target.cx = sumX / target.pixels.length;
+    target.cy = sumY / target.pixels.length;
+  }
+
+  return groups.map(g => ({
+    ...g,
+    comp: { pixels: g.pixels, area: g.area },
+    w: g.maxX - g.minX + 1,
+    h: g.maxY - g.minY + 1,
+  }));
+}
+
+function extractYellowMain(yellowMask, size) {
+  const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
+  const stats = findComponents(yellowMask, size, size)
+    .map(componentStats)
+    .filter(s => s.area >= yellowGrp.minArea)
+    .sort((a, b) => b.area - a.area);
+  if (stats.length === 0) return { segments: [], mainStat: null, allStats: [] };
+
+  const main = componentToContourSegment(stats[0], size, {
+    color: yellowGrp.displayColor,
+    layer: 'main',
+    kind: 'yellow-main',
+    minPoints: 35,
+    maxPoints: 300,
+  });
+  return { segments: main ? [main] : [], mainStat: stats[0], allStats: stats };
+}
+
+function extractYellowAccents(yellowStats, mainStat, size) {
+  if (!mainStat || yellowStats.length <= 1) return [];
+  const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
+  const nearMain = expandedBBox(mainStat, size * 0.08, size);
+  const out = [];
+
+  for (const stat of yellowStats.slice(1)) {
+    if (stat.area < 10) continue;
+    if (!isInsideOrNear(stat, nearMain)) continue;
+    const seg = componentToContourSegment(stat, size, {
+      color: yellowGrp.displayColor,
+      layer: 'accent',
+      kind: 'yellow-accent-hand',
+      minPoints: 10,
+      maxPoints: 60,
+    });
+    if (seg) out.push(seg);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+function extractCheeks(redMask, mainStat, size) {
+  const redStats = findComponents(redMask, size, size)
+    .map(componentStats)
+    .filter(s => s.area >= 2);
+  if (redStats.length === 0) return [];
+
+  const merged = mergeNearbyComponents(redStats, size)
+    .filter(s => s.area >= 2)
+    .sort((a, b) => b.area - a.area);
+  const faceBBox = mainStat ? expandedBBox(mainStat, size * 0.04, size) : null;
+  const candidates = (faceBBox ? merged.filter(s => isInsideOrNear(s, faceBBox)) : merged)
+    .sort((a, b) => b.area - a.area)
+    .slice(0, 6);
+
+  const selected = [];
+  for (const stat of candidates) {
+    const tooClose = selected.some(s => Math.abs(s.cx - stat.cx) < size * 0.08 && Math.abs(s.cy - stat.cy) < size * 0.08);
+    if (!tooClose) selected.push(stat);
+    if (selected.length >= 2) break;
+  }
+
+  console.log('[imageToPath] cheeks', selected.map(s => ({
+    area: s.area, cx: Math.round(s.cx), cy: Math.round(s.cy), w: s.w, h: s.h,
+  })));
+
+  return selected
+    .sort((a, b) => a.cx - b.cx)
+    .map(stat => componentToBlobSegment(stat, [255, 90, 145], { kind: 'cheek' }));
+}
+
+function extractFaceParts(blackMask, size) {
+  const faceColor = [255, 245, 190];
+  const stats = findComponents(blackMask, size, size)
+    .map(componentStats)
+    .filter(s => s.area >= 3)
+    .sort((a, b) => b.area - a.area)
+    .slice(0, 16);
+
+  console.log('[black components]', stats.map(s => ({
+    area: s.area,
+    cx: Math.round(s.cx),
+    cy: Math.round(s.cy),
+    w: s.w,
+    h: s.h,
+    aspect: (s.w / Math.max(1, s.h)).toFixed(2),
+  })));
+
+  if (stats.length === 0) return [];
+
+  const eyeCandidates = stats
+    .filter(s => s.area >= 4 && s.cy < size * 0.62 && s.w <= s.h * 2.4 && s.h <= size * 0.18)
+    .sort((a, b) => b.area - a.area)
+    .slice(0, 2);
+
+  const averageEyeCy = eyeCandidates.length
+    ? eyeCandidates.reduce((sum, s) => sum + s.cy, 0) / eyeCandidates.length
+    : size * 0.40;
+  const eyeSet = new Set(eyeCandidates);
+
+  const mouthCandidates = stats
+    .filter(s =>
+      !eyeSet.has(s) &&
+      s.area >= 3 &&
+      s.cy > averageEyeCy + size * 0.04 &&
+      s.w > s.h * 1.2
+    )
+    .sort((a, b) => {
+      const scoreA = a.area + a.w * 2 - Math.abs(a.cy - (averageEyeCy + size * 0.13));
+      const scoreB = b.area + b.w * 2 - Math.abs(b.cy - (averageEyeCy + size * 0.13));
+      return scoreB - scoreA;
+    });
+
+  console.log('[imageToPath] face parts', {
+    eyes: eyeCandidates.map(e => ({ area: e.area, cx: Math.round(e.cx), cy: Math.round(e.cy) })),
+    mouth: mouthCandidates[0] ? {
+      area: mouthCandidates[0].area,
+      cx: Math.round(mouthCandidates[0].cx),
+      cy: Math.round(mouthCandidates[0].cy),
+      w: mouthCandidates[0].w,
+      h: mouthCandidates[0].h,
+    } : null,
+  });
+
+  const out = [];
+  for (const eye of eyeCandidates) {
+    const seg = componentToBlobSegment(eye, faceColor, {
+      radius: Math.max(3, Math.min(7, Math.sqrt(eye.area / Math.PI) * 1.25)),
+      pointCount: 13,
+      kind: 'eye',
+    });
+    out.push(seg);
+  }
+  if (mouthCandidates[0]) {
+    const mouth = componentToStrokeSegment(mouthCandidates[0], faceColor, { kind: 'mouth', maxPoints: 44 });
+    if (mouth) out.push(mouth);
+  }
+  return out;
+}
+
+function extractOrangeMarks(orangeMask, size) {
+  const orangeGrp = COLOR_GROUPS.find(g => g.name === 'orange');
+  return maskToSegments(orangeMask, size, {
+    ...orangeGrp,
+    layer: 'accent',
+    targetPoints: 140,
+    kind: 'orange-mark',
+  });
 }
 
 // ── main export ───────────────────────────────────────────────────────────
@@ -312,197 +582,17 @@ export async function imageUrlToPathSegments(url, size = 256) {
   const totalVisible = masks.any.reduce((s, v) => s + v, 0);
   const yellowRatio  = totalVisible > 0 ? groupCounts.yellow / totalVisible : 0;
 
-  const useColorMode = yellowRatio > 0.05; // >5% yellow → treat as colored image
+  const useColorMode = yellowRatio > 0.05; // >5% yellow: treat as colored image
 
   const segments = [];
 
   if (useColorMode) {
-    // Contour extraction per color group. Red is skipped here — handled as small accent blobs below.
-    for (const grp of COLOR_GROUPS) {
-      if (groupCounts[grp.name] < grp.minArea) continue;
-      if (grp.name === 'red') continue; // cheeks handled as accent blobs below
-      const segs = maskToSegments(masks[grp.name], size, {
-        ...grp,
-        targetPoints: grp.layer === 'main' ? 300 : 160,
-      });
-      segments.push(...segs);
-    }
-
-    // Body fill: very sparse yellow interior, excluded near face features
-    if (groupCounts.yellow >= 60) {
-      const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
-      const accentBase = new Uint8Array(size * size);
-      for (let i = 0; i < size * size; i++) {
-        if (masks.black[i] || masks.red[i] || masks.orange[i]) accentBase[i] = 1;
-      }
-      const exclusionZone = dilate(accentBase, size, 10);
-      const fillSegs = maskToFillSegments(masks.yellow, size, {
-        displayColor: yellowGrp.displayColor,
-        layer: 'fill',
-        minArea: 60,
-        maxN: 3,
-        targetPoints: 55,
-        excludeMask: exclusionZone,
-      });
-      segments.push(...fillSegs);
-    }
-
-    // Yellow inner accents: small yellow components near the main body (hands, etc.)
-    {
-      const yellowComps = findComponents(masks.yellow, size, size)
-        .filter(c => c.area >= 15)
-        .sort((a, b) => b.area - a.area);
-
-      if (yellowComps.length > 1) {
-        const mainComp = yellowComps[0];
-        let mnX=Infinity, mxX=-Infinity, mnY=Infinity, mxY=-Infinity;
-        for (const [x, y] of mainComp.pixels) {
-          if(x<mnX)mnX=x; if(x>mxX)mxX=x;
-          if(y<mnY)mnY=y; if(y>mxY)mxY=y;
-        }
-        const pad = size * 0.07;
-        const yellowGrp = COLOR_GROUPS.find(g => g.name === 'yellow');
-
-        for (const comp of yellowComps.slice(1, 5)) {
-          let cx2=0, cy2=0;
-          for (const [x, y] of comp.pixels) { cx2+=x; cy2+=y; }
-          cx2 /= comp.pixels.length; cy2 /= comp.pixels.length;
-          if (cx2 < mnX-pad || cx2 > mxX+pad || cy2 < mnY-pad || cy2 > mxY+pad) continue;
-
-          // Trace this component's own isolated mask so contour stays local
-          let sx=Infinity, sy=Infinity;
-          for (const [x, y] of comp.pixels) { if(y<sy||(y===sy&&x<sx)){sx=x;sy=y;} }
-          const isoMask = new Uint8Array(size * size);
-          for (const [x, y] of comp.pixels) isoMask[y*size+x] = 1;
-          const contour = traceOuterContour(isoMask, size, size, sx, sy);
-          if (contour.length < 3) continue;
-          segments.push({
-            points:   resampleEvenly(contour, Math.max(15, Math.min(60, contour.length))),
-            color:    yellowGrp.displayColor,
-            isClosed: true, layer: 'accent', kind: 'contour',
-          });
-        }
-      }
-    }
-
-    // Cheek detection: find individual red components, render as small circular accent blobs
-    // Never use bbox or dilated-merged mask as a PathSegment
-    if (groupCounts.red >= 4) {
-      const redComps = findComponents(masks.red, size, size)
-        .filter(c => c.area >= 4)
-        .sort((a, b) => b.area - a.area);
-
-      // Face bbox from largest yellow component (for filtering cheek candidates)
-      let cheekFaceBBox = null;
-      {
-        const yc = findComponents(masks.yellow, size, size).sort((a, b) => b.area - a.area);
-        if (yc.length > 0) {
-          let mnX=Infinity, mxX=-Infinity, mnY=Infinity, mxY=-Infinity;
-          for (const [x, y] of yc[0].pixels) {
-            if(x<mnX)mnX=x; if(x>mxX)mxX=x;
-            if(y<mnY)mnY=y; if(y>mxY)mxY=y;
-          }
-          cheekFaceBBox = { minX: mnX, maxX: mxX, minY: mnY, maxY: mxY };
-        }
-      }
-
-      const redStats = redComps.map(comp => {
-        let sumX=0, sumY=0;
-        for (const [x, y] of comp.pixels) { sumX+=x; sumY+=y; }
-        return { comp, cx: sumX/comp.pixels.length, cy: sumY/comp.pixels.length };
-      });
-
-      const cheekCandidates = (cheekFaceBBox
-        ? redStats.filter(s => {
-            const pad = size * 0.06;
-            return s.cx >= cheekFaceBBox.minX - pad && s.cx <= cheekFaceBBox.maxX + pad &&
-                   s.cy >= cheekFaceBBox.minY - pad && s.cy <= cheekFaceBBox.maxY + pad;
-          })
-        : redStats
-      ).slice(0, 2);
-
-      console.log('[imageToPath] cheeks', cheekCandidates.map(s => ({
-        area: s.comp.area, cx: Math.round(s.cx), cy: Math.round(s.cy),
-      })));
-
-      for (const { cx, cy, comp } of cheekCandidates) {
-        // Render cheek as small circular blob — not a contour of bbox
-        const blobR = Math.max(3, Math.min(8, Math.sqrt(comp.area / Math.PI) * 1.5));
-        const N = 14;
-        const pts = [];
-        for (let i = 0; i < N; i++) {
-          const angle = (i / N) * Math.PI * 2;
-          pts.push([cx + Math.cos(angle) * blobR, cy + Math.sin(angle) * blobR]);
-        }
-        segments.push({ points: pts, color: [255, 80, 140], isClosed: true, layer: 'accent', kind: 'contour' });
-      }
-    }
-
-    // Mouth detection: improved eye identification + full component log
-    if (groupCounts.black >= 8) {
-      const blackComps = findComponents(masks.black, size, size)
-        .filter(c => c.area >= 6)
-        .sort((a, b) => b.area - a.area)
-        .slice(0, 10);
-
-      const compStats = blackComps.map(comp => {
-        let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity, sumX=0, sumY=0;
-        for (const [x, y] of comp.pixels) {
-          if(x<minX)minX=x; if(x>maxX)maxX=x;
-          if(y<minY)minY=y; if(y>maxY)maxY=y;
-          sumX+=x; sumY+=y;
-        }
-        return { comp, cx: sumX/comp.pixels.length, cy: sumY/comp.pixels.length,
-                 bw: maxX-minX+1, bh: maxY-minY+1 };
-      });
-
-      console.log('[imageToPath] black components', compStats.map((s, i) => ({
-        rank: i, area: s.comp.area,
-        cx: Math.round(s.cx), cy: Math.round(s.cy),
-        bw: s.bw, bh: s.bh,
-        aspect: (s.bw / Math.max(1, s.bh)).toFixed(2),
-      })));
-
-      if (compStats.length >= 1) {
-        const totalBlack = compStats.reduce((s, c) => s + c.comp.area, 0);
-        // Eye candidates: compact components in upper 55% of image, not very horizontally wide
-        // (mouth at y~60% must NOT be classified as an eye)
-        const eyeCandidates = compStats
-          .filter(s =>
-            s.comp.area < totalBlack * 0.35 &&
-            s.cy < size * 0.55 &&
-            s.bw <= s.bh * 2.5  // eyes are roughly circular, not wide bars
-          )
-          .sort((a, b) => b.comp.area - a.comp.area)
-          .slice(0, 2);
-
-        const eyeRefY = eyeCandidates.length > 0
-          ? eyeCandidates.reduce((s, c) => s + c.cy, 0) / eyeCandidates.length
-          : size * 0.35;
-        const minMouthY = eyeRefY + size * 0.08; // mouth must be clearly below eyes
-
-        const eyeSet = new Set(eyeCandidates.map(e => e.comp));
-        const mouth  = compStats.find(s =>
-          !eyeSet.has(s.comp) && s.cy > minMouthY && s.bw >= s.bh * 0.8 && s.comp.area >= 6
-        );
-
-        console.log('[imageToPath] mouth', {
-          eyeRefY: Math.round(eyeRefY), minMouthY: Math.round(minMouthY),
-          eyes: eyeCandidates.map(e => ({ cy: Math.round(e.cy), area: e.comp.area })),
-          found: !!mouth, mouthArea: mouth?.comp.area, mouthCy: mouth ? Math.round(mouth.cy) : null,
-        });
-
-        if (mouth) {
-          const mouthMask = new Uint8Array(size * size);
-          for (const [x, y] of mouth.comp.pixels) mouthMask[y * size + x] = 1;
-          const mouthSegs = maskToFillSegments(dilate(mouthMask, size, 2), size, {
-            displayColor: [255, 245, 190],
-            layer: 'accent', minArea: 4, maxN: 1, targetPoints: 40,
-          });
-          segments.push(...mouthSegs);
-        }
-      }
-    }
+    const yellow = extractYellowMain(masks.yellow, size);
+    segments.push(...yellow.segments);
+    segments.push(...extractYellowAccents(yellow.allStats, yellow.mainStat, size));
+    segments.push(...extractCheeks(masks.red, yellow.mainStat, size));
+    segments.push(...extractFaceParts(masks.black, size));
+    segments.push(...extractOrangeMarks(masks.orange, size));
   }
 
   // Fallback / supplement: use all visible pixels as main if no main segments found
