@@ -365,6 +365,40 @@ function componentToStrokeSegment(stat, color, { kind = 'mouth', maxPoints = 48 
   };
 }
 
+function componentToMouthSmileSegment(stat, color) {
+  const width = Math.max(10, stat.w * 1.7);
+  const height = Math.max(5, stat.h * 4, width * 0.32);
+  const cx = stat.cx;
+  const cy = stat.cy;
+  const anchors = [
+    [cx - width * 0.50, cy - height * 0.20],
+    [cx - width * 0.22, cy + height * 0.34],
+    [cx,              cy - height * 0.08],
+    [cx + width * 0.22, cy + height * 0.34],
+    [cx + width * 0.50, cy - height * 0.20],
+  ];
+  const controls = [
+    [cx - width * 0.42, cy + height * 0.30],
+    [cx - width * 0.08, cy + height * 0.36],
+    [cx + width * 0.08, cy + height * 0.36],
+    [cx + width * 0.42, cy + height * 0.30],
+  ];
+  const pts = [];
+  for (let s = 0; s < controls.length; s++) {
+    const p0 = anchors[s], p1 = controls[s], p2 = anchors[s + 1];
+    for (let i = 0; i < 6; i++) {
+      const t = i / 6;
+      const mt = 1 - t;
+      pts.push([
+        mt * mt * p0[0] + 2 * mt * t * p1[0] + t * t * p2[0],
+        mt * mt * p0[1] + 2 * mt * t * p1[1] + t * t * p2[1],
+      ]);
+    }
+  }
+  pts.push(anchors[anchors.length - 1]);
+  return { points: pts, color, isClosed: false, layer: 'accent', kind: 'mouth' };
+}
+
 function mergeNearbyComponents(stats, size, { maxDistance = null } = {}) {
   const threshold = maxDistance ?? Math.max(7, size * 0.045);
   const groups = [];
@@ -482,9 +516,9 @@ function extractFaceParts(blackMask, size) {
   const faceColor = [255, 245, 190];
   const stats = findComponents(blackMask, size, size)
     .map(componentStats)
-    .filter(s => s.area >= 3)
+    .filter(s => s.area >= 1)
     .sort((a, b) => b.area - a.area)
-    .slice(0, 16);
+    .slice(0, 24);
 
   console.log('[black components]', stats.map(s => ({
     area: s.area,
@@ -507,13 +541,24 @@ function extractFaceParts(blackMask, size) {
     : size * 0.40;
   const eyeSet = new Set(eyeCandidates);
 
-  const mouthCandidates = stats
+  const lowerGap = Math.max(2, size * 0.01);
+  const maxMouthDrop = Math.max(9, size * 0.10);
+  const eyeMinX = eyeCandidates.length ? Math.min(...eyeCandidates.map(e => e.cx)) : 0;
+  const eyeMaxX = eyeCandidates.length ? Math.max(...eyeCandidates.map(e => e.cx)) : size;
+  const mouthMinX = eyeCandidates.length >= 2 ? eyeMinX - size * 0.10 : 0;
+  const mouthMaxX = eyeCandidates.length >= 2 ? eyeMaxX + size * 0.10 : size;
+  const mouthPieces = stats
     .filter(s =>
       !eyeSet.has(s) &&
-      s.area >= 3 &&
-      s.cy > averageEyeCy + size * 0.04 &&
-      s.w > s.h * 1.2
-    )
+      s.cy > averageEyeCy + lowerGap &&
+      s.cy < averageEyeCy + maxMouthDrop &&
+      s.cx >= mouthMinX &&
+      s.cx <= mouthMaxX
+    );
+  const mouthCandidates = mergeNearbyComponents(mouthPieces, size, {
+    maxDistance: Math.max(4, size * 0.035),
+  })
+    .filter(s => s.area >= 2 && s.w >= 2)
     .sort((a, b) => {
       const scoreA = a.area + a.w * 2 - Math.abs(a.cy - (averageEyeCy + size * 0.13));
       const scoreB = b.area + b.w * 2 - Math.abs(b.cy - (averageEyeCy + size * 0.13));
@@ -522,6 +567,9 @@ function extractFaceParts(blackMask, size) {
 
   console.log('[imageToPath] face parts', {
     eyes: eyeCandidates.map(e => ({ area: e.area, cx: Math.round(e.cx), cy: Math.round(e.cy) })),
+    mouthPieces: mouthPieces.map(p => ({
+      area: p.area, cx: Math.round(p.cx), cy: Math.round(p.cy), w: p.w, h: p.h,
+    })),
     mouth: mouthCandidates[0] ? {
       area: mouthCandidates[0].area,
       cx: Math.round(mouthCandidates[0].cx),
@@ -541,8 +589,7 @@ function extractFaceParts(blackMask, size) {
     out.push(seg);
   }
   if (mouthCandidates[0]) {
-    const mouth = componentToStrokeSegment(mouthCandidates[0], faceColor, { kind: 'mouth', maxPoints: 44 });
-    if (mouth) out.push(mouth);
+    out.push(componentToMouthSmileSegment(mouthCandidates[0], faceColor));
   }
   return out;
 }
