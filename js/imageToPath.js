@@ -317,12 +317,11 @@ export async function imageUrlToPathSegments(url, size = 256) {
   const segments = [];
 
   if (useColorMode) {
-    // Contour extraction per color group.
-    // Red uses a dilated mask to merge nearby cheek fragments before contouring.
+    // Contour extraction per color group. Red is skipped here — handled as small accent blobs below.
     for (const grp of COLOR_GROUPS) {
       if (groupCounts[grp.name] < grp.minArea) continue;
-      const mask = grp.name === 'red' ? dilate(masks.red, size, 5) : masks[grp.name];
-      const segs = maskToSegments(mask, size, {
+      if (grp.name === 'red') continue; // cheeks handled as accent blobs below
+      const segs = maskToSegments(masks[grp.name], size, {
         ...grp,
         targetPoints: grp.layer === 'main' ? 300 : 160,
       });
@@ -386,6 +385,59 @@ export async function imageUrlToPathSegments(url, size = 256) {
       }
     }
 
+    // Cheek detection: find individual red components, render as small circular accent blobs
+    // Never use bbox or dilated-merged mask as a PathSegment
+    if (groupCounts.red >= 4) {
+      const redComps = findComponents(masks.red, size, size)
+        .filter(c => c.area >= 4)
+        .sort((a, b) => b.area - a.area);
+
+      // Face bbox from largest yellow component (for filtering cheek candidates)
+      let cheekFaceBBox = null;
+      {
+        const yc = findComponents(masks.yellow, size, size).sort((a, b) => b.area - a.area);
+        if (yc.length > 0) {
+          let mnX=Infinity, mxX=-Infinity, mnY=Infinity, mxY=-Infinity;
+          for (const [x, y] of yc[0].pixels) {
+            if(x<mnX)mnX=x; if(x>mxX)mxX=x;
+            if(y<mnY)mnY=y; if(y>mxY)mxY=y;
+          }
+          cheekFaceBBox = { minX: mnX, maxX: mxX, minY: mnY, maxY: mxY };
+        }
+      }
+
+      const redStats = redComps.map(comp => {
+        let sumX=0, sumY=0;
+        for (const [x, y] of comp.pixels) { sumX+=x; sumY+=y; }
+        return { comp, cx: sumX/comp.pixels.length, cy: sumY/comp.pixels.length };
+      });
+
+      const cheekCandidates = (cheekFaceBBox
+        ? redStats.filter(s => {
+            const pad = size * 0.06;
+            return s.cx >= cheekFaceBBox.minX - pad && s.cx <= cheekFaceBBox.maxX + pad &&
+                   s.cy >= cheekFaceBBox.minY - pad && s.cy <= cheekFaceBBox.maxY + pad;
+          })
+        : redStats
+      ).slice(0, 2);
+
+      console.log('[imageToPath] cheeks', cheekCandidates.map(s => ({
+        area: s.comp.area, cx: Math.round(s.cx), cy: Math.round(s.cy),
+      })));
+
+      for (const { cx, cy, comp } of cheekCandidates) {
+        // Render cheek as small circular blob — not a contour of bbox
+        const blobR = Math.max(3, Math.min(8, Math.sqrt(comp.area / Math.PI) * 1.5));
+        const N = 14;
+        const pts = [];
+        for (let i = 0; i < N; i++) {
+          const angle = (i / N) * Math.PI * 2;
+          pts.push([cx + Math.cos(angle) * blobR, cy + Math.sin(angle) * blobR]);
+        }
+        segments.push({ points: pts, color: [255, 80, 140], isClosed: true, layer: 'accent', kind: 'contour' });
+      }
+    }
+
     // Mouth detection: improved eye identification + full component log
     if (groupCounts.black >= 8) {
       const blackComps = findComponents(masks.black, size, size)
@@ -413,20 +465,25 @@ export async function imageUrlToPathSegments(url, size = 256) {
 
       if (compStats.length >= 1) {
         const totalBlack = compStats.reduce((s, c) => s + c.comp.area, 0);
-        // Eye candidates: not a huge body-outline, in upper 65% of image
+        // Eye candidates: compact components in upper 55% of image, not very horizontally wide
+        // (mouth at y~60% must NOT be classified as an eye)
         const eyeCandidates = compStats
-          .filter(s => s.comp.area < totalBlack * 0.30 && s.cy < size * 0.65)
+          .filter(s =>
+            s.comp.area < totalBlack * 0.35 &&
+            s.cy < size * 0.55 &&
+            s.bw <= s.bh * 2.5  // eyes are roughly circular, not wide bars
+          )
           .sort((a, b) => b.comp.area - a.comp.area)
           .slice(0, 2);
 
         const eyeRefY = eyeCandidates.length > 0
           ? eyeCandidates.reduce((s, c) => s + c.cy, 0) / eyeCandidates.length
           : size * 0.35;
-        const minMouthY = eyeRefY + size * 0.04;
+        const minMouthY = eyeRefY + size * 0.08; // mouth must be clearly below eyes
 
         const eyeSet = new Set(eyeCandidates.map(e => e.comp));
         const mouth  = compStats.find(s =>
-          !eyeSet.has(s.comp) && s.cy > minMouthY && s.bw >= s.bh * 0.75 && s.comp.area >= 8
+          !eyeSet.has(s.comp) && s.cy > minMouthY && s.bw >= s.bh * 0.8 && s.comp.area >= 6
         );
 
         console.log('[imageToPath] mouth', {
