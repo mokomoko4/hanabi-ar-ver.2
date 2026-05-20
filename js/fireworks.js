@@ -75,6 +75,30 @@ function samplePathEvenly(pts, n) {
   return result;
 }
 
+function toUnit(v) {
+  return v > 1 ? v / 255 : v;
+}
+
+function pixelFireworkColor(px) {
+  const r = toUnit(px.r ?? 1);
+  const g = toUnit(px.g ?? 0.85);
+  const b = toUnit(px.b ?? 0.25);
+  const lum = r * 0.299 + g * 0.587 + b * 0.114;
+
+  if (lum < 0.18) return [1.0, 0.88, 0.30];
+  if (r > 0.62 && g < 0.50 && b < 0.58) return [1.0, 0.24, 0.42];
+  if (r > 0.68 && g > 0.30 && g < 0.78 && b < 0.45) return [1.0, 0.58, 0.08];
+  if (r > 0.64 && g > 0.52 && b < 0.55) return [1.0, 0.88, 0.10];
+  if (lum > 0.82) return [1.0, 0.96, 0.74];
+
+  const boost = Math.max(1.0, 0.62 / Math.max(lum, 0.01));
+  return [
+    Math.min(1, r * boost),
+    Math.min(1, g * boost),
+    Math.min(1, b * boost),
+  ];
+}
+
 export class FireworksEngine {
   constructor(canvas) {
     this.canvas = canvas;
@@ -307,9 +331,58 @@ export class FireworksEngine {
     }
   }
 
+  // Spawn smartphone-style image pixels: particles pass through the drawing
+  // shape and continue drifting like the phone AR version.
+  _spawnImagePixels(segs, params) {
+    const { x: cx, y: cy } = this.center;
+    const pixels = [];
+    for (const seg of segs) {
+      if (Array.isArray(seg.pixels)) pixels.push(...seg.pixels);
+    }
+    if (pixels.length === 0) return;
+
+    const maxCount = Math.min(pixels.length, this.MAX - this.particles.length);
+    const HALF = 3.75;
+    const baseSize = params.baseSize * 0.30;
+
+    for (let i = 0; i < maxCount; i++) {
+      const px = pixels[i];
+      const nx = Math.max(-1.25, Math.min(1.25, px.nx ?? 0));
+      const ny = Math.max(-1.25, Math.min(1.25, px.ny ?? 0));
+      const tx = cx + nx * HALF;
+      const ty = cy - ny * HALF;
+      const lx = tx - cx;
+      const ly = ty - cy;
+      const len = Math.sqrt(lx * lx + ly * ly) || 1;
+      const dist = Math.min(1.15, Math.sqrt(nx * nx + ny * ny));
+      const extraFrac = 0.10 + dist * 0.10 + Math.random() * 0.08;
+      const speed = (len / (15.5 + Math.random() * 4.0)) * (1 + extraFrac);
+      const [cr, cg, cb] = pixelFireworkColor(px);
+      const type = px.type ?? 0;
+      const typeSize = type === 1 ? 1.22 : type === 2 ? 0.86 : 1.0;
+
+      this._addParticle({
+        x: cx + (Math.random() - 0.5) * 0.04,
+        y: cy + (Math.random() - 0.5) * 0.04,
+        vx: (lx / len) * speed + (Math.random() - 0.5) * 0.006,
+        vy: (ly / len) * speed + (Math.random() - 0.5) * 0.006,
+        r: cr, g: cg, b: cb, a: 1,
+        size: baseSize * typeSize * (0.92 + Math.random() * 0.26),
+        decay: params.decay * (0.85 + Math.random() * 0.55),
+        kind: 'image',
+      });
+    }
+  }
+
   // Spawn all layers simultaneously at burst — fill → main → accent
   _spawnAllLayers() {
     const { pathSegments, params } = this.show;
+    const imageSegs = pathSegments.filter(s => s.kind === 'character-pixels' || s.layer === 'image-pixels');
+    if (imageSegs.length > 0) {
+      this._spawnImagePixels(imageSegs, params);
+      return;
+    }
+
     const mainSegs      = pathSegments.filter(s => s.layer === 'main');
     const fillSegs      = pathSegments.filter(s => s.layer === 'fill');
     const accentSegs    = pathSegments.filter(s => s.layer === 'accent');
@@ -390,7 +463,7 @@ export class FireworksEngine {
       }
     } else if (show.phase === 'burst') {
       if (this._debugEl) this._debugEl.textContent = `phase=burst  t=${show.phaseT.toFixed(2)}`;
-      const alive = this.particles.some(p => (p.kind === 'outline' || p.kind === 'fill') && p.a > 0.02);
+      const alive = this.particles.some(p => (p.kind === 'outline' || p.kind === 'fill' || p.kind === 'image') && p.a > 0.02);
       if (!alive || show.phaseT >= timings.fall) {
         this.show = null; this.particles = [];
         if (this._debugEl) this._debugEl.textContent = 'phase=idle';
@@ -408,6 +481,16 @@ export class FireworksEngine {
       if (p.kind === 'trail' || p.kind === 'burst') {
         p.x += p.vx; p.y += p.vy;
         p.vy -= 0.0015; p.vx *= 0.97; p.vy *= 0.97;
+        p.a -= p.decay;
+        if (p.a < 0.01) this.particles.splice(i, 1);
+        continue;
+      }
+      if (p.kind === 'image') {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy -= 0.0014;
+        p.vx *= 0.984;
+        p.vy *= 0.984;
         p.a -= p.decay;
         if (p.a < 0.01) this.particles.splice(i, 1);
         continue;
