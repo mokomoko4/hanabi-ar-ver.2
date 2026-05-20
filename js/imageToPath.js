@@ -8,10 +8,10 @@ const DEFAULT_SIZE = 320;
 const DRAW_SCALE = 0.94;
 
 const PIXEL_LIMITS = {
-  outline: 2400,
-  feature: 900,
-  fill: 650,
-  max: 3600,
+  outline: 3200,
+  feature: 1200,
+  fill: 1000,
+  max: 5200,
 };
 
 const DX8 = [ 1,  1,  0, -1, -1, -1,  0,  1];

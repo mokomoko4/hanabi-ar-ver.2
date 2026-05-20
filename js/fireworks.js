@@ -343,7 +343,7 @@ export class FireworksEngine {
 
     const maxCount = Math.min(pixels.length, this.MAX - this.particles.length);
     const HALF = 3.75;
-    const baseSize = params.baseSize * 0.30;
+    const baseSize = params.baseSize * 0.20;
 
     for (let i = 0; i < maxCount; i++) {
       const px = pixels[i];
@@ -488,9 +488,9 @@ export class FireworksEngine {
       if (p.kind === 'image') {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy -= 0.0014;
-        p.vx *= 0.984;
-        p.vy *= 0.984;
+        p.vy -= 0.0006;
+        p.vx *= 0.968;
+        p.vy *= 0.968;
         p.a -= p.decay;
         if (p.a < 0.01) this.particles.splice(i, 1);
         continue;
